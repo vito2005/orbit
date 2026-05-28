@@ -1,0 +1,25 @@
+---
+description: Orbit coding conventions (Bun, SvelteKit/Svelte 5 runes, Elysia, Telegraf, Supabase, OpenAI)
+globs: **
+alwaysApply: true
+---
+
+Coding conventions for this repo are defined in @AGENTS.md.
+
+Apply them to every `.ts` and `.svelte` file:
+
+- Bun-first (no `npm` / `npx` / `node`).
+- Svelte 5 runes mode: `$props`, `$state`, `$derived`, `$effect` — never
+  `export let`, `$:`, or `on:click`. Use `{@render children()}`, not `<slot />`.
+- SvelteKit data fetching in `+page.server.ts` `load` functions. Service-role
+  Supabase key is server-only; do not ship it to the browser.
+- Elysia route handlers stay thin — parse, delegate to a function in
+  `@orbit/shared` or `apps/bot/src/process.ts`, return JSON.
+- Telegraf bot has a single-user guard (`TELEGRAM_ALLOWED_USER_ID`). Preserve it.
+- All env reads through [packages/shared/src/env.ts](packages/shared/src/env.ts).
+- All shared types from [packages/shared/src/types.ts](packages/shared/src/types.ts).
+- No `any` in TypeScript. No DDD layers. No client-side state libraries.
+- Schema changes go through new files in `supabase/migrations/`.
+
+When writing Svelte code, use the Svelte MCP server tools (`list-sections`,
+`get-documentation`, `svelte-autofixer`) before returning code to the user.
