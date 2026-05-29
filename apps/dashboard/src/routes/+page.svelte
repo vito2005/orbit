@@ -1,9 +1,22 @@
 <script lang="ts">
+    import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { categoryEmoji, formatRelative, priorityLabel } from '$lib/format'
 
     import type { PageData } from './$types'
 
     const { data }: { data: PageData } = $props()
+
+    const redirectTo = $derived(buildRedirectTo(data.filters))
+
+    function buildRedirectTo(filters: { search: string; category: string; priority: string }): string {
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
+        const params = new URLSearchParams()
+        if (filters.search) params.set('q', filters.search)
+        if (filters.category) params.set('category', filters.category)
+        if (filters.priority) params.set('priority', filters.priority)
+        const qs = params.toString()
+        return qs ? `/?${qs}` : '/'
+    }
 </script>
 
 <form class="filters" method="GET">
@@ -43,10 +56,7 @@
                         {entry.title}
                     </a>
                 </h3>
-                <span class="meta">
-                    <span class="badge {entry.priority}">{entry.priority.replace('_', ' ')}</span>
-                    &nbsp;{formatRelative(entry.created_at)}
-                </span>
+                <span class="meta">{formatRelative(entry.created_at)}</span>
             </div>
             {#if entry.summary}
                 <p class="summary">{entry.summary}</p>
@@ -61,15 +71,11 @@
                     {/each}
                 </div>
             {/if}
+            <EntryEdit {entry} {redirectTo} />
             <div class="card-actions">
-                {#if entry.priority !== 'archive' && !entry.done_at && !entry.scheduled_for}
-                    <form method="POST" action="/week?/planForToday">
-                        <input type="hidden" name="id" value={entry.id} />
-                        <button type="submit" class="card-action">→ Today</button>
-                    </form>
-                {/if}
                 {#if entry.priority !== 'archive'}
                     <form method="POST" action="/entries/{entry.id}?/archive">
+                        <input type="hidden" name="redirectTo" value={redirectTo} />
                         <button type="submit" class="card-action">Archive</button>
                     </form>
                 {/if}
@@ -80,6 +86,7 @@
                         if (!confirm('Delete this entry permanently?')) ev.preventDefault()
                     }}
                 >
+                    <input type="hidden" name="redirectTo" value={redirectTo} />
                     <button type="submit" class="card-action card-action-danger">Delete</button>
                 </form>
             </div>

@@ -413,6 +413,77 @@ a:hover {
     color: var(--text);
 }
 
+.entry-edit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    align-items: center;
+}
+.entry-edit-form {
+    margin: 0;
+    display: inline-flex;
+}
+.entry-edit-select {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 20px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+        linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position:
+        calc(100% - 11px) 50%,
+        calc(100% - 7px) 50%;
+    background-size:
+        4px 4px,
+        4px 4px;
+    background-repeat: no-repeat;
+}
+.entry-edit-select:hover {
+    border-color: var(--text);
+}
+.entry-edit-select.now {
+    background-color: rgba(248, 113, 113, 0.15);
+    color: var(--danger);
+    border-color: rgba(248, 113, 113, 0.3);
+}
+.entry-edit-select.this_week {
+    background-color: rgba(125, 211, 252, 0.15);
+    color: var(--accent);
+    border-color: rgba(125, 211, 252, 0.3);
+}
+.entry-edit-select.later {
+    background-color: var(--bg-elev);
+    color: var(--muted);
+}
+.entry-edit-select.archive {
+    background-color: var(--bg-elev);
+    color: var(--muted);
+    opacity: 0.7;
+}
+.entry-edit-chip {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 3px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+}
+.entry-edit-chip:hover {
+    color: var(--text);
+    border-color: var(--text);
+}
+
 .empty {
     text-align: center;
     color: var(--muted);

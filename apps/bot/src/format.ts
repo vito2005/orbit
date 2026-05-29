@@ -38,7 +38,7 @@ export function formatSaved(entry: Entry): string {
         lines.push(`*Next action:* ${escape(entry.next_action)}`)
     }
     if (entry.tags.length > 0) {
-        lines.push(`*Tags:* ${entry.tags.map((t) => `#${t.replace(/\s+/g, '_')}`).join(' ')}`)
+        lines.push(`*Tags:* ${entry.tags.map((t) => `#${escape(t.replace(/\s+/g, '_'))}`).join(' ')}`)
     }
     return lines.join('\n')
 }

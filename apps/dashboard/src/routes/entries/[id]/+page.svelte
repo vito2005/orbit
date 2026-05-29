@@ -1,4 +1,5 @@
 <script lang="ts">
+    import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { categoryEmoji, formatDate } from '$lib/format'
 
     import type { PageData } from './$types'
@@ -30,14 +31,13 @@
 <div class="detail">
     <h1>{categoryEmoji(e.category)} {e.title}</h1>
     <div class="detail-meta">
-        <span class="badge {e.priority}">{e.priority.replace('_', ' ')}</span>
-        &nbsp;·&nbsp; {e.category}
-        &nbsp;·&nbsp; energy: {e.energy}
+        energy: {e.energy}
         {#if e.content_potential !== null}
             &nbsp;·&nbsp; potential: {e.content_potential}/10
         {/if}
         &nbsp;·&nbsp; {formatDate(e.created_at)}
     </div>
+    <EntryEdit entry={e} redirectTo="/entries/{e.id}" />
 
     {#if e.summary}
         <section>

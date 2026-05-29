@@ -1,4 +1,5 @@
 <script lang="ts">
+    import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { categoryEmoji } from '$lib/format'
 
     import type { ActionData, PageData } from './$types'
@@ -50,16 +51,7 @@
                             {#if entry.next_action}
                                 <p class="next-action">{entry.next_action}</p>
                             {/if}
-                            <div class="today-meta">
-                                <span class="badge {entry.priority}">{entry.priority.replace('_', ' ')}</span>
-                                <span class="muted">· {entry.category}</span>
-                                <form method="POST" action="?/unschedule" class="inline-form">
-                                    <input type="hidden" name="id" value={entry.id} />
-                                    <button type="submit" class="link-button" aria-label="Remove from today"
-                                        >убрать</button
-                                    >
-                                </form>
-                            </div>
+                            <EntryEdit {entry} redirectTo="/today" />
                         </div>
                     </div>
                 </article>

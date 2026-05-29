@@ -176,3 +176,13 @@ export async function setPriority(id: string, priority: string): Promise<void> {
     const { error } = await supabase.from('entries').update({ priority }).eq('id', id)
     if (error) throw new Error(`DB set priority failed: ${error.message}`)
 }
+
+export async function setCategory(id: string, category: string): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('entries').update({ category }).eq('id', id)
+    if (error) throw new Error(`DB set category failed: ${error.message}`)
+}
+
+export async function scheduleFor(id: string, date: string | null): Promise<void> {
+    await scheduleEntries([id], date)
+}

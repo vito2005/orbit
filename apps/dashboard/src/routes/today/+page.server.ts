@@ -30,11 +30,4 @@ export const actions: Actions = {
         await markDone(id, done)
         throw redirect(303, '/today')
     },
-    unschedule: async ({ request }) => {
-        const data = await request.formData()
-        const id = String(data.get('id') ?? '')
-        if (!id) return fail(400, { error: 'missing id' })
-        await scheduleEntries([id], null)
-        throw redirect(303, '/today')
-    },
 }

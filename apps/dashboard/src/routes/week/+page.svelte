@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Entry } from '@orbit/shared'
 
+    import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { categoryEmoji } from '$lib/format'
 
     import type { PageData } from './$types'
@@ -38,25 +39,17 @@
             <h2>{categoryEmoji(group.category)} {group.category}</h2>
             {#each group.items as entry (entry.id)}
                 <article class="card week-card">
-                    <div class="week-row">
-                        <div class="today-body">
-                            <a href="/entries/{entry.id}" class="today-title">{entry.title}</a>
-                            {#if entry.next_action}
-                                <p class="next-action">{entry.next_action}</p>
-                            {/if}
-                            <div class="today-meta">
-                                <span class="badge {entry.priority}">{entry.priority.replace('_', ' ')}</span>
-                                {#if entry.scheduled_for}
-                                    <span class="muted">· запланировано {entry.scheduled_for}</span>
-                                {/if}
-                            </div>
-                        </div>
-                        {#if !entry.scheduled_for}
-                            <form method="POST" action="?/planForToday">
-                                <input type="hidden" name="id" value={entry.id} />
-                                <button type="submit" class="card-action">→ Сегодня</button>
-                            </form>
+                    <div class="today-body">
+                        <a href="/entries/{entry.id}" class="today-title">{entry.title}</a>
+                        {#if entry.next_action}
+                            <p class="next-action">{entry.next_action}</p>
                         {/if}
+                        {#if entry.scheduled_for}
+                            <p class="muted" style="font-size: 12px; margin: 4px 0 0;">
+                                Запланировано на {entry.scheduled_for}
+                            </p>
+                        {/if}
+                        <EntryEdit {entry} redirectTo="/week" />
                     </div>
                 </article>
             {/each}
