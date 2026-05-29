@@ -14,7 +14,6 @@
         "noEmit": true,
         "allowImportingTsExtensions": true,
         "verbatimModuleSyntax": false,
-        "forceConsistentCasingInFileNames": true,
-        "baseUrl": "."
+        "forceConsistentCasingInFileNames": true
     }
 }

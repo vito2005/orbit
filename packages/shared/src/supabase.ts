@@ -92,3 +92,15 @@ export async function listByPriorities(priorities: string[]): Promise<Entry[]> {
     if (error) throw new Error(`DB list failed: ${error.message}`)
     return (data ?? []) as Entry[]
 }
+
+export async function archiveEntry(id: string): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('entries').update({ priority: 'archive' }).eq('id', id)
+    if (error) throw new Error(`DB archive failed: ${error.message}`)
+}
+
+export async function deleteEntry(id: string): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('entries').delete().eq('id', id)
+    if (error) throw new Error(`DB delete failed: ${error.message}`)
+}

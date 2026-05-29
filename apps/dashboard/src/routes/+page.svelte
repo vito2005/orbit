@@ -61,6 +61,22 @@
                     {/each}
                 </div>
             {/if}
+            <div class="card-actions">
+                {#if entry.priority !== 'archive'}
+                    <form method="POST" action="/entries/{entry.id}?/archive">
+                        <button type="submit" class="card-action">Archive</button>
+                    </form>
+                {/if}
+                <form
+                    method="POST"
+                    action="/entries/{entry.id}?/delete"
+                    onsubmit={(ev) => {
+                        if (!confirm('Delete this entry permanently?')) ev.preventDefault()
+                    }}
+                >
+                    <button type="submit" class="card-action card-action-danger">Delete</button>
+                </form>
+            </div>
         </article>
     {/each}
 {/if}

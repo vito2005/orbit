@@ -7,7 +7,25 @@
     const e = $derived(data.entry)
 </script>
 
-<a href="/" class="back">← back to list</a>
+<div class="detail-header">
+    <a href="/" class="back">← back to list</a>
+    <div class="detail-actions">
+        {#if e.priority !== 'archive'}
+            <form method="POST" action="?/archive">
+                <button type="submit" class="btn-secondary">Archive</button>
+            </form>
+        {/if}
+        <form
+            method="POST"
+            action="?/delete"
+            onsubmit={(ev) => {
+                if (!confirm('Delete this entry permanently?')) ev.preventDefault()
+            }}
+        >
+            <button type="submit" class="btn-danger">Delete</button>
+        </form>
+    </div>
+</div>
 
 <div class="detail">
     <h1>{categoryEmoji(e.category)} {e.title}</h1>

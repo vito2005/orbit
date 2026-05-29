@@ -1,7 +1,8 @@
 import { env } from '@orbit/shared'
 import { fail, redirect } from '@sveltejs/kit'
 
-import { setSession } from '../../hooks.server'
+import { setSession } from '$lib/auth'
+
 import type { Actions, PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async ({ locals, url }) => {

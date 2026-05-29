@@ -1,4 +1,4 @@
-import { CATEGORIES, listByPriorities, listEntries } from '@orbit/shared'
+import { CATEGORIES, listByPriorities, listEntries, PRIORITIES } from '@orbit/shared'
 
 import type { PageServerLoad } from './$types'
 
@@ -6,9 +6,10 @@ export const load: PageServerLoad = async ({ url }) => {
     const category = url.searchParams.get('category') ?? ''
     const search = url.searchParams.get('q') ?? ''
     const priority = url.searchParams.get('priority') ?? ''
+    const isPriorityFilter = (PRIORITIES as readonly string[]).includes(priority)
 
     let entries
-    if (priority === 'now' || priority === 'this_week') {
+    if (isPriorityFilter) {
         entries = await listByPriorities([priority])
         if (category) entries = entries.filter((e) => e.category === category)
         if (search) {
@@ -26,6 +27,7 @@ export const load: PageServerLoad = async ({ url }) => {
             search: search || undefined,
             limit: 200,
         })
+        entries = entries.filter((e) => e.priority !== 'archive')
     }
 
     return {

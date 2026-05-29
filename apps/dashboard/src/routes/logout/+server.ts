@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit'
 
-import { clearSession } from '../../hooks.server'
+import { clearSession } from '$lib/auth'
+
 import type { RequestHandler } from './$types'
 
 export const POST: RequestHandler = async ({ cookies }) => {

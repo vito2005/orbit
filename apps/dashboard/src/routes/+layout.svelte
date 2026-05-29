@@ -10,6 +10,7 @@
             <a href="/">All</a>
             <a href="/?priority=now">🔥 Now</a>
             <a href="/?priority=this_week">📅 Week</a>
+            <a href="/?priority=archive">📦 Archive</a>
             <form method="POST" action="/logout" class="logout-form">
                 <button type="submit">Logout</button>
             </form>

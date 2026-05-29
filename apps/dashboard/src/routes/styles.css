@@ -180,6 +180,44 @@ a:hover {
     gap: 4px;
     flex-wrap: wrap;
 }
+.card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    opacity: 0.5;
+    transition: opacity 0.1s;
+}
+.card:hover .card-actions {
+    opacity: 1;
+}
+.card-actions form {
+    margin: 0;
+}
+.card-action {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 3px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+}
+.card-action:hover {
+    color: var(--text);
+    border-color: var(--text);
+}
+.card-action-danger {
+    color: var(--danger);
+    border-color: rgba(248, 113, 113, 0.3);
+}
+.card-action-danger:hover {
+    background: rgba(248, 113, 113, 0.1);
+    border-color: var(--danger);
+    color: var(--danger);
+}
 
 .empty {
     text-align: center;
@@ -225,8 +263,45 @@ a:hover {
 .back {
     color: var(--muted);
     display: inline-block;
-    margin-bottom: 16px;
     font-size: 13px;
+}
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.detail-actions {
+    display: flex;
+    gap: 8px;
+}
+.detail-actions form {
+    margin: 0;
+}
+.btn-secondary,
+.btn-danger {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+}
+.btn-secondary:hover {
+    color: var(--text);
+    border-color: var(--text);
+}
+.btn-danger {
+    color: var(--danger);
+    border-color: rgba(248, 113, 113, 0.4);
+}
+.btn-danger:hover {
+    background: rgba(248, 113, 113, 0.1);
+    border-color: var(--danger);
 }
 
 .login {
