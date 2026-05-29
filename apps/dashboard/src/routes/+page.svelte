@@ -62,6 +62,12 @@
                 </div>
             {/if}
             <div class="card-actions">
+                {#if entry.priority !== 'archive' && !entry.done_at && !entry.scheduled_for}
+                    <form method="POST" action="/week?/planForToday">
+                        <input type="hidden" name="id" value={entry.id} />
+                        <button type="submit" class="card-action">→ Today</button>
+                    </form>
+                {/if}
                 {#if entry.priority !== 'archive'}
                     <form method="POST" action="/entries/{entry.id}?/archive">
                         <button type="submit" class="card-action">Archive</button>

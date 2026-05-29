@@ -47,6 +47,8 @@ export interface Entry {
     energy: Energy
     content_potential: number | null
     raw_ai_json: AIAnalysis
+    scheduled_for: string | null
+    done_at: string | null
 }
 
-export type NewEntry = Omit<Entry, 'id' | 'created_at'>
+export type NewEntry = Omit<Entry, 'id' | 'created_at' | 'scheduled_for' | 'done_at'>

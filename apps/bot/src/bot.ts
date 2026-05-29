@@ -1,8 +1,17 @@
-import { CATEGORIES, env, listByPriorities, listEntries, weeklyReview } from '@orbit/shared'
+import {
+    CATEGORIES,
+    env,
+    generateDailyPlan,
+    listEntries,
+    listPlanCandidates,
+    listTodayPlan,
+    scheduleEntries,
+    weeklyReview,
+} from '@orbit/shared'
 import { Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 
-import { categoryLabel, formatList, formatSaved, priorityLabel } from './format.ts'
+import { categoryLabel, formatList, formatSaved } from './format.ts'
 import { log } from './log.ts'
 import { processText, processVoice } from './process.ts'
 
@@ -27,9 +36,10 @@ export function createBot(): Telegraf {
                 "Send me a *voice message* or *text* and I'll transcribe, categorize and save it.",
                 '',
                 'Commands:',
-                '/today — entries marked `now` and `this_week`',
-                '/week — AI summary of the last 7 days',
-                '/categories — list categories',
+                '/today — план на сегодня',
+                '/plan — AI собирает план на сегодня',
+                '/week — AI обзор за 7 дней',
+                '/categories — список категорий',
             ].join('\n'),
             { parse_mode: 'Markdown' },
         )
@@ -44,24 +54,49 @@ export function createBot(): Telegraf {
 
     bot.command('today', async (ctx) => {
         try {
-            const entries = await listByPriorities(['now', 'this_week'])
-            const grouped: Record<string, typeof entries> = { now: [], this_week: [] }
-            for (const e of entries) {
-                grouped[e.priority]?.push(e)
-            }
+            const planned = await listTodayPlan()
+            const open = planned.filter((e) => !e.done_at)
+            const done = planned.filter((e) => e.done_at)
+
             const parts: string[] = []
-            if (grouped.now.length > 0) {
-                parts.push(`${priorityLabel('now')}\n${formatList(grouped.now, '')}`)
+            if (open.length > 0) {
+                parts.push(`*План на сегодня:*\n${formatList(open, '')}`)
             }
-            if (grouped.this_week.length > 0) {
-                parts.push(`${priorityLabel('this_week')}\n${formatList(grouped.this_week, '')}`)
+            if (done.length > 0) {
+                parts.push(`*Сделано:* ${done.length}`)
             }
-            await ctx.reply(parts.length > 0 ? parts.join('\n\n') : 'Nothing urgent right now. 🌿', {
-                parse_mode: 'Markdown',
-            })
+            if (parts.length === 0) {
+                parts.push('Пусто. /plan чтобы AI собрал план из this_week.')
+            }
+            await ctx.reply(parts.join('\n\n'), { parse_mode: 'Markdown' })
         } catch (err) {
             log.error('today failed', err)
             await ctx.reply("Failed to load today's entries.")
+        }
+    })
+
+    bot.command('plan', async (ctx) => {
+        try {
+            await ctx.sendChatAction('typing')
+            const candidates = await listPlanCandidates()
+            if (candidates.length === 0) {
+                await ctx.reply('Нет свободных задач в now / this_week. Скинь идею.')
+                return
+            }
+            const plan = await generateDailyPlan(candidates)
+            if (plan.selected_ids.length === 0) {
+                await ctx.reply('AI не выбрал ни одной задачи.')
+                return
+            }
+            const today = new Date().toISOString().slice(0, 10)
+            await scheduleEntries(plan.selected_ids, today)
+            const picked = candidates.filter((c) => plan.selected_ids.includes(c.id))
+            const lines = ['*Запланировал на сегодня:*', formatList(picked, '')]
+            if (plan.reasoning) lines.push(`\n_${plan.reasoning}_`)
+            await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' })
+        } catch (err) {
+            log.error('plan failed', err)
+            await ctx.reply('Failed to generate plan.')
         }
     })
 

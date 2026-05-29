@@ -104,3 +104,75 @@ export async function deleteEntry(id: string): Promise<void> {
     const { error } = await supabase.from('entries').delete().eq('id', id)
     if (error) throw new Error(`DB delete failed: ${error.message}`)
 }
+
+function todayLocalDate(): string {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+}
+
+export async function listTodayPlan(): Promise<Entry[]> {
+    const supabase = getSupabase()
+    const today = todayLocalDate()
+    const { data, error } = await supabase
+        .from('entries')
+        .select('*')
+        .eq('scheduled_for', today)
+        .order('done_at', { ascending: true, nullsFirst: true })
+        .order('priority', { ascending: true })
+    if (error) throw new Error(`DB today plan failed: ${error.message}`)
+    return (data ?? []) as Entry[]
+}
+
+export async function listPlanCandidates(): Promise<Entry[]> {
+    const supabase = getSupabase()
+    const { data, error } = await supabase
+        .from('entries')
+        .select('*')
+        .in('priority', ['now', 'this_week'])
+        .is('done_at', null)
+        .is('scheduled_for', null)
+        .order('priority', { ascending: true })
+        .order('created_at', { ascending: false })
+        .limit(50)
+    if (error) throw new Error(`DB plan candidates failed: ${error.message}`)
+    return (data ?? []) as Entry[]
+}
+
+export async function listWeek(): Promise<Entry[]> {
+    const supabase = getSupabase()
+    const { data, error } = await supabase
+        .from('entries')
+        .select('*')
+        .in('priority', ['now', 'this_week'])
+        .is('done_at', null)
+        .order('priority', { ascending: true })
+        .order('created_at', { ascending: false })
+        .limit(200)
+    if (error) throw new Error(`DB week failed: ${error.message}`)
+    return (data ?? []) as Entry[]
+}
+
+export async function markDone(id: string, done: boolean): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase
+        .from('entries')
+        .update({ done_at: done ? new Date().toISOString() : null })
+        .eq('id', id)
+    if (error) throw new Error(`DB mark done failed: ${error.message}`)
+}
+
+export async function scheduleEntries(ids: string[], date: string | null): Promise<void> {
+    if (ids.length === 0) return
+    const supabase = getSupabase()
+    const { error } = await supabase.from('entries').update({ scheduled_for: date }).in('id', ids)
+    if (error) throw new Error(`DB schedule failed: ${error.message}`)
+}
+
+export async function setPriority(id: string, priority: string): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('entries').update({ priority }).eq('id', id)
+    if (error) throw new Error(`DB set priority failed: ${error.message}`)
+}

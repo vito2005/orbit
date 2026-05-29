@@ -19,6 +19,8 @@
         "format:check": "prettier --check .",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
+        "migrate": "supabase db push",
+        "migrate:new": "supabase migration new",
         "prepare": "simple-git-hooks",
         "seed:brief": "bun scripts/seed-from-brief.ts",
         "sort-package": "sort-package-json package.json apps/*/package.json packages/*/package.json scripts/package.json",
@@ -39,6 +41,7 @@
         "prettier-plugin-svelte": "^4.0.1",
         "simple-git-hooks": "^2.13.1",
         "sort-package-json": "^3.6.1",
+        "supabase": "^2.101.0",
         "svelte-eslint-parser": "^1.6.1",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.59.4"

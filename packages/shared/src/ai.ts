@@ -143,6 +143,78 @@ function normalizeAnalysis(input: unknown, transcript: string): AIAnalysis {
     }
 }
 
+const NORTH_STARS = `User's north stars for the next 1-2 years:
+- Career axis: high-paid frontend / creative engineering / 3D engineer (international market)
+- Income: from $3k/month → $7.5k/month (~$90k/year)
+- YouTube subscribers: from 200 → 5000 (primary content channel; long-form videos about Three.js / frontend)
+- Three.js course (Bruno Simon) to be completed — directly serves the 3D career axis
+- Secondary content channels: Twitter (as YouTube distributor), LinkedIn (recruiter outreach), Telegram (RU audience)
+- Constraint: work takes 8h/day weekdays; protect personal-projects time, but smart work also enables promotion ($3k → $4k by year-end at current job)`
+
+export interface DailyPlanSelection {
+    selected_ids: string[]
+    reasoning: string
+}
+
+export async function generateDailyPlan(candidates: Entry[]): Promise<DailyPlanSelection> {
+    if (candidates.length === 0) {
+        return { selected_ids: [], reasoning: 'No unscheduled tasks in this_week or now.' }
+    }
+
+    const compact = candidates.map((e) => ({
+        id: e.id,
+        title: e.title,
+        category: e.category,
+        priority: e.priority,
+        next_action: e.next_action,
+        energy: e.energy,
+        tags: e.tags,
+    }))
+
+    const completion = await client().chat.completions.create({
+        model: env.OPENAI_CHAT_MODEL,
+        response_format: { type: 'json_object' },
+        temperature: 0.3,
+        messages: [
+            {
+                role: 'system',
+                content: `You are a personal planning assistant. Given a pool of the user's tasks and their north stars, pick 3-5 tasks to do TODAY. Balance categories — don't pick only work, or only content. Prefer tasks that move north stars (3d, content, work-promotion, money). Avoid picking energy="high" for more than 1-2 items.
+
+${NORTH_STARS}
+
+Return STRICT JSON:
+{
+  "selected_ids": string[],   // 3-5 entry ids from the pool
+  "reasoning": string         // 1-2 sentences in Russian, explaining the choice
+}
+
+Return JSON only. No prose, no fences.`,
+            },
+            {
+                role: 'user',
+                content: JSON.stringify(compact, null, 2),
+            },
+        ],
+    })
+
+    const raw = completion.choices[0]?.message?.content ?? '{}'
+    let parsed: unknown
+    try {
+        parsed = JSON.parse(raw)
+    } catch {
+        throw new Error(`AI plan returned non-JSON: ${raw.slice(0, 200)}`)
+    }
+    const obj = (parsed ?? {}) as Record<string, unknown>
+    const validIds = new Set(candidates.map((c) => c.id))
+    const selected = Array.isArray(obj.selected_ids)
+        ? (obj.selected_ids as unknown[]).map(String).filter((id) => validIds.has(id))
+        : []
+    return {
+        selected_ids: selected.slice(0, 5),
+        reasoning: typeof obj.reasoning === 'string' ? obj.reasoning : '',
+    }
+}
+
 export async function weeklyReview(entries: Entry[]): Promise<string> {
     if (entries.length === 0) {
         return 'No entries in the last 7 days yet.'
