@@ -24,7 +24,7 @@ export function categoryLabel(c: string): string {
 }
 
 export function priorityLabel(p: string): string {
-    return `${PRIORITY_EMOJI[p] ?? '•'} ${p}`
+    return `${PRIORITY_EMOJI[p] ?? '•'} ${p.replace(/_/g, ' ')}`
 }
 
 export function formatSaved(entry: Entry): string {
