@@ -1,14 +1,20 @@
 <script lang="ts">
-    import type { Entry } from '@orbit/shared'
+    import { daysLeftWord, daysSince, type Entry, isStale } from '@orbit/shared'
 
+    import { page } from '$app/state'
     import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { categoryEmoji } from '$lib/format'
 
-    import type { PageData } from './$types'
+    import type { ActionData, PageData } from './$types'
 
-    const { data }: { data: PageData } = $props()
+    const { data, form }: { data: PageData; form: ActionData } = $props()
     const entries = $derived(data.entries)
+    const sprint = $derived(data.sprint)
     const grouped = $derived(groupByCategory(entries))
+    const movedCount = $derived(Number(page.url.searchParams.get('moved') ?? '0'))
+    const unscheduledCount = $derived(
+        entries.filter((e) => e.priority === 'this_week' && !e.scheduled_for && !e.done_at).length,
+    )
 
     function groupByCategory(list: Entry[]): { category: string; items: Entry[] }[] {
         const order: string[] = []
@@ -25,9 +31,48 @@
 </script>
 
 <div class="today-head">
-    <h1>Эта неделя</h1>
-    <span class="muted">{entries.length} незавершённых</span>
+    <div>
+        <h1>Эта неделя</h1>
+        <p class="sprint-line">
+            Спринт {sprint.label} · <strong>{daysLeftWord(sprint.daysLeft)}</strong>
+        </p>
+    </div>
+    <div class="week-actions">
+        <span class="muted">{entries.length} незавершённых</span>
+        <form method="POST" action="?/generateSprint">
+            <button type="submit" class="btn-primary">
+                {entries.length > 0 ? 'AI: добрать в спринт' : 'AI: сгенерировать спринт'}
+            </button>
+        </form>
+        {#if unscheduledCount > 0}
+            <form
+                method="POST"
+                action="?/demoteAll"
+                onsubmit={(ev) => {
+                    if (!confirm(`Перенести ${unscheduledCount} незапланированных в backlog?`)) {
+                        ev.preventDefault()
+                    }
+                }}
+            >
+                <button type="submit" class="btn-secondary">Всё в backlog ({unscheduledCount})</button>
+            </form>
+        {/if}
+    </div>
 </div>
+
+{#if movedCount > 0}
+    <p class="reasoning">Перенесено {movedCount} в backlog.</p>
+{/if}
+
+{#if form && 'reasoning' in form && form.reasoning}
+    <p class="reasoning">
+        <strong>Спринт собран ({form.picked} задач):</strong>
+        {form.reasoning}
+    </p>
+{/if}
+{#if form && 'error' in form && form.error}
+    <p class="error">{form.error}</p>
+{/if}
 
 {#if entries.length === 0}
     <div class="empty">
@@ -44,11 +89,19 @@
                         {#if entry.next_action}
                             <p class="next-action">{entry.next_action}</p>
                         {/if}
-                        {#if entry.scheduled_for}
-                            <p class="muted" style="font-size: 12px; margin: 4px 0 0;">
-                                Запланировано на {entry.scheduled_for}
-                            </p>
-                        {/if}
+                        <div class="today-meta">
+                            {#if entry.scheduled_for}
+                                <span class="muted">Запланировано на {entry.scheduled_for}</span>
+                            {/if}
+                            {#if isStale(entry.created_at, sprint)}
+                                <span class="stale-chip">в плане {daysSince(entry.created_at, sprint.today)} дн.</span>
+                            {/if}
+                            {#if data.subtaskCounts[entry.id]}
+                                <a href="/entries/{entry.id}" class="subtask-chip"
+                                    >↳ {data.subtaskCounts[entry.id].done}/{data.subtaskCounts[entry.id].total} подзадач</a
+                                >
+                            {/if}
+                        </div>
                         <EntryEdit {entry} redirectTo="/week" />
                     </div>
                 </article>

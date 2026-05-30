@@ -31,6 +31,7 @@ export async function processVoice(args: {
         energy: analysis.energy,
         content_potential: analysis.content_potential,
         raw_ai_json: analysis,
+        parent_id: null,
     }
 
     const saved = await insertEntry(entry)
@@ -56,6 +57,7 @@ export async function processText(args: { text: string; telegramMessageId: numbe
         energy: analysis.energy,
         content_potential: analysis.content_potential,
         raw_ai_json: analysis,
+        parent_id: null,
     }
 
     const saved = await insertEntry(entry)

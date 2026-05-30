@@ -179,8 +179,11 @@ through `$props()`:
   [apps/dashboard/src/hooks.server.ts](apps/dashboard/src/hooks.server.ts).
 - Use the `Cookies` type from `@sveltejs/kit` for cookie helpers — don't
   invent a structural type.
-- To opt a route out of the parent layout (e.g. `login/`), use the
-  `+layout@.svelte` reset filename. Don't duplicate layouts.
+- **`+layout@.svelte` does NOT skip the root layout.** It only skips
+  intermediate layouts. To hide chrome (topbar, north stars) on a specific
+  route like `/login`, render it conditionally in the root layout based on
+  `page.url.pathname` from `$app/state`. See
+  [+layout.svelte](apps/dashboard/src/routes/+layout.svelte).
 
 ### Routing
 
@@ -191,12 +194,53 @@ through `$props()`:
 ### Components
 
 - Split a `.svelte` file when it grows past ~200 lines or has unrelated
-  concerns. Extract child components, derive helpers into `src/lib/`.
-- Helpers (formatting, parsing) live in `apps/dashboard/src/lib/` and are
-  imported with the `$lib/...` alias.
-- Reuse the styles in [apps/dashboard/src/routes/styles.css](apps/dashboard/src/routes/styles.css)
-  via the CSS variables (`--bg`, `--accent`, etc.). Do not introduce a CSS
-  framework.
+  concerns. For a large component, isolate functionality and move it out
+  into:
+  - a **child component** in `$lib/components/` — a self-contained UI chunk
+    or repeated markup (see [EntryEdit](apps/dashboard/src/lib/components/EntryEdit.svelte));
+  - a **state helper** (`$lib/<feature>.svelte.ts` or `$lib/<feature>.ts`) —
+    reactive logic with `$state`/`$derived`, or plain stateful functions;
+  - a **utility** in `$lib/` — pure functions (e.g.
+    [format.ts](apps/dashboard/src/lib/format.ts)).
+- Helpers always go under `apps/dashboard/src/lib/` and import via the
+  `$lib/...` alias — never `../../something`.
+- Several unrelated top-level blocks in one `.svelte` file is also a signal
+  to split, even before the 200-line threshold.
+
+### Styling: hand-rolled CSS + mobile-first
+
+- All styles live in [apps/dashboard/src/routes/styles.css](apps/dashboard/src/routes/styles.css)
+  and use the CSS variables (`--bg`, `--accent`, `--muted`, etc.). Don't
+  introduce a CSS framework yet — Tailwind may come later, deliberately.
+- **Mobile-first.** Write base styles for mobile, then layer desktop on top
+  with `min-width` media queries. Desktop-first (`max-width` overrides) is
+  allowed only as a deliberate exception.
+
+```css
+/* ✗ desktop-first */
+.gallery {
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 720px) {
+  .gallery {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ✓ mobile-first */
+.gallery {
+  grid-template-columns: 1fr;
+}
+@media (min-width: 720px) {
+  .gallery {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+```
+
+- Use semantic class names (`hub-section`, `entry-edit-chip`), not utility
+  fragments. When we migrate to Tailwind, the migration unit is one
+  component at a time — semantic classes survive that.
 
 ## Elysia (bot HTTP)
 
@@ -304,11 +348,40 @@ under Bun from the repo root, so `.env` loads automatically.
 
 ## Naming
 
-- Plain functions get verb names: `processVoice`, `analyze`, `uploadAudio`.
-- Event handlers in Svelte get a clear `handle*` only when the binding name
-  isn't enough: `onclick={handleSubmit}`. Inline arrows are fine for trivial
-  cases.
-- Avoid single-letter names outside tiny local scopes.
+A name should make clear what the thing is on its own.
+
+- **`handle*` is reserved for event handlers** — functions bound to a DOM or
+  Svelte event. Do not give a plain callable function a `handle*` name.
+  `onclick={handleSubmit}` is correct; `function handleQuery() {…}` for a
+  non-event helper is not.
+- Plain functions get verb names describing what they do: `processVoice`,
+  `buildSearchQuery`, `formatPrice`, `restoreQuerySnapshot`.
+- Keep one convention per file — don't mix `onPriceInput` and `handleReset`
+  for the same kind of thing.
+- Avoid single-letter / opaque names (`v`, `q`, `e`) outside tiny local
+  scopes like `arr.map((e) => …)`.
+
+## Control flow
+
+- Always use braces `{}` for `if` / `else` / `for` / `while` bodies, **even
+  single-line ones**. Prettier won't enforce this — discipline does.
+
+```ts
+// ✗
+if (!user) return null
+for (const id of ids) await scheduleFor(id, today)
+
+// ✓
+if (!user) {
+  return null
+}
+for (const id of ids) {
+  await scheduleFor(id, today)
+}
+```
+
+Exception: ternary expressions and arrow bodies that are intentionally tiny
+(`arr.map((x) => x.id)`) are fine — the rule is for statement bodies.
 
 ## Adding a feature: the checklist
 

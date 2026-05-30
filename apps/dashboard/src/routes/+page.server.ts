@@ -1,38 +1,23 @@
-import { CATEGORIES, listByPriorities, listEntries, PRIORITIES } from '@orbit/shared'
+import { countOpenInPriority, currentSprint, listRecent, listTodayPlan, listWeek } from '@orbit/shared'
 
 import type { PageServerLoad } from './$types'
 
-export const load: PageServerLoad = async ({ url }) => {
-    const category = url.searchParams.get('category') ?? ''
-    const search = url.searchParams.get('q') ?? ''
-    const priority = url.searchParams.get('priority') ?? ''
-    const isPriorityFilter = (PRIORITIES as readonly string[]).includes(priority)
+export const load: PageServerLoad = async () => {
+    const [today, week, recent, backlogCount] = await Promise.all([
+        listTodayPlan(),
+        listWeek(),
+        listRecent(5),
+        countOpenInPriority('later'),
+    ])
 
-    let entries
-    if (isPriorityFilter) {
-        entries = await listByPriorities([priority])
-        if (category) entries = entries.filter((e) => e.category === category)
-        if (search) {
-            const term = search.toLowerCase()
-            entries = entries.filter(
-                (e) =>
-                    e.title.toLowerCase().includes(term) ||
-                    e.summary.toLowerCase().includes(term) ||
-                    e.transcript.toLowerCase().includes(term),
-            )
-        }
-    } else {
-        entries = await listEntries({
-            category: category || undefined,
-            search: search || undefined,
-            limit: 200,
-        })
-        entries = entries.filter((e) => e.priority !== 'archive')
-    }
+    const todayOpen = today.filter((e) => !e.done_at)
+    const todayDone = today.filter((e) => e.done_at)
 
     return {
-        entries,
-        filters: { category, search, priority },
-        categories: CATEGORIES,
+        today: { open: todayOpen, done: todayDone },
+        weekOpenCount: week.length,
+        backlogCount,
+        recent,
+        sprint: currentSprint(),
     }
 }

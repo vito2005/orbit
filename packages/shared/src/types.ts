@@ -49,6 +49,24 @@ export interface Entry {
     raw_ai_json: AIAnalysis
     scheduled_for: string | null
     done_at: string | null
+    parent_id: string | null
 }
 
 export type NewEntry = Omit<Entry, 'id' | 'created_at' | 'scheduled_for' | 'done_at'>
+
+export interface DailyPlan {
+    date: string
+    reasoning: string
+    entry_ids: string[]
+    explanations: Record<string, string>
+    created_at: string
+}
+
+export interface Sprint {
+    start: string
+    end: string
+    today: string
+    daysIn: number
+    daysLeft: number
+    label: string
+}
