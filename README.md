@@ -60,18 +60,21 @@ cp .env.example .env
 
 ### Environment variables
 
-| Variable                    | Description                                                 |
-| --------------------------- | ----------------------------------------------------------- |
-| `TELEGRAM_BOT_TOKEN`        | Token from @BotFather                                       |
-| `TELEGRAM_ALLOWED_USER_ID`  | Your numeric Telegram user ID — bot ignores everyone else   |
-| `OPENAI_API_KEY`            | OpenAI key                                                  |
-| `OPENAI_TRANSCRIBE_MODEL`   | Defaults to `whisper-1`                                     |
-| `OPENAI_CHAT_MODEL`         | Defaults to `gpt-4o-mini`                                   |
-| `SUPABASE_URL`              | `https://<project>.supabase.co`                             |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-side only, never expose to client) |
-| `SUPABASE_STORAGE_BUCKET`   | Bucket for raw audio (default `orbit-audio`)                |
-| `DASHBOARD_PASSWORD`        | Single password to unlock the dashboard                     |
-| `BOT_PORT`                  | Port for the bot's HTTP health endpoint (default `3001`)    |
+| Variable                     | Description                                                 |
+| ---------------------------- | ----------------------------------------------------------- |
+| `TELEGRAM_BOT_TOKEN`         | Token from @BotFather                                       |
+| `TELEGRAM_ALLOWED_USER_ID`   | Your numeric Telegram user ID — bot ignores everyone else   |
+| `OPENAI_API_KEY`             | OpenAI key                                                  |
+| `OPENAI_TRANSCRIBE_MODEL`    | Defaults to `whisper-1`                                     |
+| `OPENAI_CHAT_MODEL`          | Defaults to `gpt-4o-mini`                                   |
+| `SUPABASE_URL`               | `https://<project>.supabase.co`                             |
+| `SUPABASE_SERVICE_ROLE_KEY`  | Service role key (server-side only, never expose to client) |
+| `SUPABASE_STORAGE_BUCKET`    | Bucket for raw audio (default `orbit-audio`)                |
+| `DASHBOARD_PASSWORD`         | Single password to unlock the dashboard                     |
+| `WEB_PUSH_VAPID_PUBLIC_KEY`  | Public VAPID key for dashboard Web Push                     |
+| `WEB_PUSH_VAPID_PRIVATE_KEY` | Private VAPID key for dashboard Web Push                    |
+| `WEB_PUSH_VAPID_SUBJECT`     | VAPID subject, usually `mailto:<you>`                       |
+| `BOT_PORT`                   | Port for the bot's HTTP health endpoint (default `3001`)    |
 
 ## Running locally
 

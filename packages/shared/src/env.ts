@@ -39,6 +39,15 @@ export const env = {
     get DASHBOARD_PASSWORD() {
         return optional('DASHBOARD_PASSWORD', 'changeme')
     },
+    get WEB_PUSH_VAPID_PUBLIC_KEY() {
+        return optional('WEB_PUSH_VAPID_PUBLIC_KEY', '')
+    },
+    get WEB_PUSH_VAPID_PRIVATE_KEY() {
+        return optional('WEB_PUSH_VAPID_PRIVATE_KEY', '')
+    },
+    get WEB_PUSH_VAPID_SUBJECT() {
+        return optional('WEB_PUSH_VAPID_SUBJECT', 'mailto:orbit@example.com')
+    },
     get BOT_PORT() {
         return Number(optional('BOT_PORT', '3001'))
     },

@@ -2,6 +2,7 @@
     import './styles.css'
 
     import { page } from '$app/state'
+    import PwaPushTest from '$lib/components/PwaPushTest.svelte'
     import { formatNumber, NORTH_STARS, progressPct } from '$lib/northStars'
 
     const { children } = $props()
@@ -17,6 +18,7 @@
                 <a href="/week">Week</a>
                 <a href="/inbox">Inbox</a>
                 <a href="/inbox?priority=archive">📦 Archive</a>
+                <PwaPushTest />
                 <form method="POST" action="/logout" class="logout-form">
                     <button type="submit">Logout</button>
                 </form>
