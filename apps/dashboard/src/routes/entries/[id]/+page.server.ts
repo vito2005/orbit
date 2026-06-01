@@ -12,6 +12,7 @@ import {
     PRIORITIES,
     scheduleFor,
     setCategory,
+    setExtraContext,
     setMotivation,
     setPriority,
     type SubtaskSuggestion,
@@ -79,11 +80,21 @@ export const actions: Actions = {
             return fail(404, { error: 'entry not found' })
         }
         const [profile, resumes] = await Promise.all([getProfile(), listResumes()])
-        const suggestions = await suggestSubtasks(entry, profile.about_me, resumes)
-        if (suggestions.length === 0) {
+        const result = await suggestSubtasks(entry, profile.about_me, resumes)
+        if (result.kind === 'needs_context') {
+            return { needsContext: result.question }
+        }
+        if (result.subtasks.length === 0) {
             return fail(500, { error: 'AI не вернул подзадачи.' })
         }
-        return { suggestions }
+        return { suggestions: result.subtasks }
+    },
+    setExtraContext: async ({ params, request }) => {
+        const data = await request.formData()
+        const raw = String(data.get('extra_context') ?? '').trim()
+        const value = raw.length > 0 ? raw : null
+        await setExtraContext(params.id as string, value)
+        throw redirect(303, `/entries/${params.id}?context_saved=1`)
     },
     generateMotivation: async ({ params }) => {
         const entry = await getEntry(params.id as string)

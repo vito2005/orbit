@@ -312,6 +312,12 @@ export async function setMotivation(id: string, motivation: string | null): Prom
     if (error) throw new Error(`DB set motivation failed: ${error.message}`)
 }
 
+export async function setExtraContext(id: string, extraContext: string | null): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('entries').update({ extra_context: extraContext }).eq('id', id)
+    if (error) throw new Error(`DB set extra_context failed: ${error.message}`)
+}
+
 export async function getProfile(): Promise<UserProfile> {
     const supabase = getSupabase()
     const { data, error } = await supabase

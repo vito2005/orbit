@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { page } from '$app/state'
     import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { categoryEmoji, formatDate } from '$lib/format'
 
@@ -8,6 +9,8 @@
     const e = $derived(data.entry)
     const subtasks = $derived(data.subtasks)
     const suggestions = $derived(form && 'suggestions' in form ? form.suggestions : null)
+    const needsContext = $derived(form && 'needsContext' in form ? form.needsContext : null)
+    const contextSaved = $derived(page.url.searchParams.get('context_saved') === '1')
     const doneSubtasks = $derived(subtasks.filter((s) => s.done_at !== null).length)
 </script>
 
@@ -93,6 +96,35 @@
 
     <section>
         <h2>
+            Контекст / источники
+            {#if e.extra_context && e.extra_context.length > 0}
+                <span class="muted" style="font-weight: normal; text-transform: none; letter-spacing: 0;">
+                    ({e.extra_context.length} символов)
+                </span>
+            {/if}
+        </h2>
+        <p class="muted" style="font-size: 12px; margin: 0 0 8px;">
+            Программа курса, ToC книги, brief задачи, ссылки, ТЗ. AI использует это при разбивке на подзадачи и при
+            мотивации.
+        </p>
+        {#if contextSaved}
+            <p class="reasoning" style="margin-bottom: 8px;">Сохранено.</p>
+        {/if}
+        <form method="POST" action="?/setExtraContext" class="profile-form">
+            <textarea
+                name="extra_context"
+                rows="8"
+                placeholder="Вставь сюда: программу курса, brief задачи, ссылки, ТЗ — что угодно. AI будет использовать это."
+                >{e.extra_context ?? ''}</textarea
+            >
+            <div class="profile-form-actions">
+                <button type="submit" class="btn-secondary">Сохранить контекст</button>
+            </div>
+        </form>
+    </section>
+
+    <section>
+        <h2>
             Подзадачи
             {#if subtasks.length > 0}
                 <span class="muted" style="font-weight: normal; text-transform: none; letter-spacing: 0;">
@@ -100,6 +132,17 @@
                 </span>
             {/if}
         </h2>
+
+        {#if needsContext}
+            <div class="needs-context">
+                <p><strong>AI просит больше контекста:</strong></p>
+                <p>{needsContext}</p>
+                <p class="muted" style="font-size: 12px; margin: 8px 0 0;">
+                    ↑ Вставь это в поле «Контекст / источники» выше, сохрани, и нажми «AI: разбить на подзадачи» ещё
+                    раз.
+                </p>
+            </div>
+        {/if}
 
         {#if subtasks.length > 0}
             <ul class="hub-list" style="margin-bottom: 12px;">

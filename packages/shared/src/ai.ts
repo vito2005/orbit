@@ -422,10 +422,12 @@ Return plain text. No JSON, no markdown headers, no quotes — just the motivati
                     next_action: entry.next_action,
                     category: entry.category,
                     tags: entry.tags,
+                    extra_context: entry.extra_context,
                     parent: parent
                         ? {
                               title: parent.title,
                               motivation: parent.motivation,
+                              extra_context: parent.extra_context,
                           }
                         : null,
                 }),
@@ -441,11 +443,11 @@ export interface SubtaskSuggestion {
     next_action: string | null
 }
 
-export async function suggestSubtasks(
-    entry: Entry,
-    profile?: string,
-    resumes?: Resume[],
-): Promise<SubtaskSuggestion[]> {
+export type SubtaskResult =
+    | { kind: 'subtasks'; subtasks: SubtaskSuggestion[] }
+    | { kind: 'needs_context'; question: string }
+
+export async function suggestSubtasks(entry: Entry, profile?: string, resumes?: Resume[]): Promise<SubtaskResult> {
     const completion = await client().chat.completions.create({
         model: env.OPENAI_CHAT_MODEL,
         response_format: { type: 'json_object' },
@@ -453,23 +455,32 @@ export async function suggestSubtasks(
         messages: [
             {
                 role: 'system',
-                content: `You help break down one large task into 3-6 concrete subtasks. Each subtask should:
-- Take roughly 30-90 minutes of focused work
+                content: `You help break down ONE large task. CRITICAL RULE: do not hallucinate structure you don't actually know.
+
+The user may provide source material in the "extra_context" field — course curriculum (ToC), brief, design spec, links, etc. Use that as ground truth.
+
+You have TWO possible responses:
+
+A) If you CAN ground subtasks in real evidence (title is self-explanatory like "ответить на письмо X", OR transcript has enough detail, OR extra_context provides the source material):
+{
+  "kind": "subtasks",
+  "subtasks": [{ "title": "...", "next_action": "..." | null }]
+}
+
+B) If the task references an EXTERNAL source you don't have (e.g. "пройти курс Bruno Simon" without curriculum, "сделать дизайн X" without spec, "прочитать книгу Y" without ToC):
+{
+  "kind": "needs_context",
+  "question": "<1-2 sentences in Russian: WHAT specific material to paste into extra_context. Be concrete: 'Вставь оглавление курса (список глав).', not 'опиши подробнее'."
+}
+
+Each subtask (when you DO return them) should:
+- Take ~30-90 min of focused work
 - Have a clear, narrow scope (one chapter, one PR, one section, one shoot)
-- Be doable independently — they can be picked in any order
+- Be doable independently
 - Be in the SAME language as the parent task (usually Russian)
+- Reference ACTUAL evidence from transcript/extra_context, NOT invented names
 
 ${buildContext(profile, resumes)}
-
-Return STRICT JSON:
-{
-  "subtasks": [
-    {
-      "title": string,            // <= 80 chars, in same language as parent
-      "next_action": string|null  // concrete first step, optional
-    }
-  ]
-}
 
 Return JSON only. No prose, no fences.`,
             },
@@ -482,6 +493,7 @@ Return JSON only. No prose, no fences.`,
                     next_action: entry.next_action,
                     category: entry.category,
                     tags: entry.tags,
+                    extra_context: entry.extra_context,
                 }),
             },
         ],
@@ -494,8 +506,16 @@ Return JSON only. No prose, no fences.`,
         throw new Error(`AI subtasks returned non-JSON: ${raw.slice(0, 200)}`)
     }
     const obj = (parsed ?? {}) as Record<string, unknown>
+
+    if (obj.kind === 'needs_context') {
+        const q = typeof obj.question === 'string' ? obj.question.trim() : ''
+        if (q.length > 0) {
+            return { kind: 'needs_context', question: q }
+        }
+    }
+
     const rawSubs = Array.isArray(obj.subtasks) ? obj.subtasks : []
-    return rawSubs
+    const subs = rawSubs
         .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
         .map((s) => ({
             title: typeof s.title === 'string' ? s.title.slice(0, 120) : '',
@@ -503,6 +523,8 @@ Return JSON only. No prose, no fences.`,
         }))
         .filter((s) => s.title.length > 0)
         .slice(0, 6)
+
+    return { kind: 'subtasks', subtasks: subs }
 }
 
 export async function weeklyReview(entries: Entry[]): Promise<string> {

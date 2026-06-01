@@ -867,6 +867,24 @@ a:hover {
     font-size: 14px;
     font-family: inherit;
 }
+.needs-context {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    border-left: 3px solid var(--warn);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+}
+.needs-context p {
+    margin: 0 0 6px;
+}
+.needs-context p:last-child {
+    margin-bottom: 0;
+}
+
 .resume-edit-form textarea {
     width: 100%;
     background: var(--bg-elev);

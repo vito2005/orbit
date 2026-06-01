@@ -51,9 +51,10 @@ export interface Entry {
     done_at: string | null
     parent_id: string | null
     motivation: string | null
+    extra_context: string | null
 }
 
-export type NewEntry = Omit<Entry, 'id' | 'created_at' | 'scheduled_for' | 'done_at' | 'motivation'>
+export type NewEntry = Omit<Entry, 'id' | 'created_at' | 'scheduled_for' | 'done_at' | 'motivation' | 'extra_context'>
 
 export interface DailyPlan {
     date: string
