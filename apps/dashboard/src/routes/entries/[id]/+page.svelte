@@ -7,6 +7,7 @@
 
     const { data, form }: { data: PageData; form: ActionData } = $props()
     const e = $derived(data.entry)
+    const parent = $derived(data.parent)
     const subtasks = $derived(data.subtasks)
     const suggestions = $derived(form && 'suggestions' in form ? form.suggestions : null)
     const needsContext = $derived(form && 'needsContext' in form ? form.needsContext : null)
@@ -35,6 +36,11 @@
 </div>
 
 <div class="detail">
+    {#if parent}
+        <p class="parent-link">
+            ↑ часть задачи: <a href="/entries/{parent.id}">{categoryEmoji(parent.category)} {parent.title}</a>
+        </p>
+    {/if}
     <h1>{categoryEmoji(e.category)} {e.title}</h1>
     <div class="detail-meta">
         {e.type === 'voice' ? '🎤 voice' : '📝 text'}

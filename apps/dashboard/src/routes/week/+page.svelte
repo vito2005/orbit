@@ -85,6 +85,11 @@
             {#each group.items as entry (entry.id)}
                 <article class="card week-card">
                     <div class="today-body">
+                        {#if entry.parent_id && data.parentTitles[entry.parent_id]}
+                            <a href="/entries/{entry.parent_id}" class="parent-chip"
+                                >↑ {data.parentTitles[entry.parent_id]}</a
+                            >
+                        {/if}
                         <a href="/entries/{entry.id}" class="today-title">{entry.title}</a>
                         {#if entry.next_action}
                             <p class="next-action">{entry.next_action}</p>

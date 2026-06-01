@@ -27,7 +27,8 @@ export const load: PageServerLoad = async ({ params }) => {
     if (!entry) {
         throw error(404, 'Entry not found')
     }
-    return { entry, subtasks }
+    const parent = entry.parent_id ? await getEntry(entry.parent_id) : null
+    return { entry, subtasks, parent }
 }
 
 function safeRedirect(data: FormData, fallback: string): string {

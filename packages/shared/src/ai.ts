@@ -212,6 +212,7 @@ export async function generateDailyPlan(
     targetDate?: string,
     profile?: string,
     resumes?: Resume[],
+    parentTitles?: Record<string, string>,
 ): Promise<DailyPlanSelection> {
     if (candidates.length === 0) {
         return { selected_ids: [], reasoning: 'No unscheduled tasks in this_week or now.', explanations: {} }
@@ -225,6 +226,7 @@ export async function generateDailyPlan(
     const compact = candidates.map((e) => ({
         id: e.id,
         title: e.title,
+        parent_title: e.parent_id ? (parentTitles?.[e.parent_id] ?? null) : null,
         category: e.category,
         priority: e.priority,
         next_action: e.next_action,
@@ -308,6 +310,7 @@ export async function generateWeeklyPlan(
     sprint: Sprint,
     profile?: string,
     resumes?: Resume[],
+    parentTitles?: Record<string, string>,
 ): Promise<WeeklyPlanSelection> {
     if (candidates.length === 0) {
         return { selected_ids: [], reasoning: 'Backlog пуст.' }
@@ -322,6 +325,7 @@ export async function generateWeeklyPlan(
     const compact = candidates.map((e) => ({
         id: e.id,
         title: e.title,
+        parent_title: e.parent_id ? (parentTitles?.[e.parent_id] ?? null) : null,
         category: e.category,
         priority: e.priority,
         next_action: e.next_action,

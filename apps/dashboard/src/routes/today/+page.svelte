@@ -9,6 +9,7 @@
     const { data, form }: { data: PageData; form: ActionData } = $props()
     const today = $derived(data.today)
     const tomorrow = $derived(data.tomorrow)
+    const parentTitles = $derived(data.parentTitles)
 
     function open(entries: Entry[]): Entry[] {
         return entries.filter((e) => !e.done_at)
@@ -72,6 +73,11 @@
                                 <button type="submit" class="done-toggle" aria-label="Mark done">○</button>
                             </form>
                             <div class="today-body">
+                                {#if entry.parent_id && parentTitles[entry.parent_id]}
+                                    <a href="/entries/{entry.parent_id}" class="parent-chip"
+                                        >↑ {parentTitles[entry.parent_id]}</a
+                                    >
+                                {/if}
                                 <a href="/entries/{entry.id}" class="today-title">
                                     {categoryEmoji(entry.category)}
                                     {entry.title}
@@ -130,6 +136,11 @@
                         <div class="today-row">
                             <span class="done-toggle preview" aria-hidden="true">·</span>
                             <div class="today-body">
+                                {#if entry.parent_id && parentTitles[entry.parent_id]}
+                                    <a href="/entries/{entry.parent_id}" class="parent-chip"
+                                        >↑ {parentTitles[entry.parent_id]}</a
+                                    >
+                                {/if}
                                 <a href="/entries/{entry.id}" class="today-title">
                                     {categoryEmoji(entry.category)}
                                     {entry.title}

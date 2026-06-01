@@ -3,6 +3,7 @@ import {
     countSubtasksByParent,
     currentSprint,
     generateWeeklyPlan,
+    getParentTitles,
     getProfile,
     listResumes,
     listSprintCandidates,
@@ -21,7 +22,8 @@ export const load: PageServerLoad = async () => {
     for (const [k, v] of subtaskCountsMap) {
         subtaskCounts[k] = v
     }
-    return { entries, sprint, subtaskCounts }
+    const parentTitles = await getParentTitles(entries)
+    return { entries, sprint, subtaskCounts, parentTitles }
 }
 
 export const actions: Actions = {
@@ -35,7 +37,8 @@ export const actions: Actions = {
             return fail(400, { error: 'Backlog пуст. Скинь идеи в бот.' })
         }
         const sprint = currentSprint()
-        const plan = await generateWeeklyPlan(candidates, sprint, profile.about_me, resumes)
+        const parentTitles = await getParentTitles(candidates)
+        const plan = await generateWeeklyPlan(candidates, sprint, profile.about_me, resumes, parentTitles)
         if (plan.selected_ids.length === 0) {
             return fail(500, { error: 'AI не выбрал задачи.' })
         }

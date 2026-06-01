@@ -1,6 +1,7 @@
 import {
     generateDailyPlan,
     getDailyPlan,
+    getParentTitles,
     getProfile,
     listPlanCandidates,
     listResumes,
@@ -31,9 +32,11 @@ export const load: PageServerLoad = async () => {
         listScheduledFor(tomorrow),
         getDailyPlan(tomorrow),
     ])
+    const parentTitles = await getParentTitles([...todayEntries, ...tomorrowEntries])
     return {
         today: { date: today, entries: todayEntries, plan: todayPlan },
         tomorrow: { date: tomorrow, entries: tomorrowEntries, plan: tomorrowPlan },
+        parentTitles,
     }
 }
 
@@ -48,7 +51,8 @@ export const actions: Actions = {
         if (candidates.length === 0) {
             return fail(400, { error: 'Нет задач в now / this_week — пополни инбокс.' })
         }
-        const plan = await generateDailyPlan(candidates, date, profile.about_me, resumes)
+        const parentTitles = await getParentTitles(candidates)
+        const plan = await generateDailyPlan(candidates, date, profile.about_me, resumes, parentTitles)
         if (plan.selected_ids.length === 0) {
             return fail(500, { error: 'AI не выбрал ни одной задачи.' })
         }

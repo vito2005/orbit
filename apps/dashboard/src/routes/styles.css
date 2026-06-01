@@ -867,6 +867,32 @@ a:hover {
     font-size: 14px;
     font-family: inherit;
 }
+.parent-link {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 4px;
+}
+.parent-link a {
+    color: var(--accent);
+}
+
+.parent-chip {
+    display: inline-block;
+    color: var(--muted);
+    font-size: 11px;
+    margin-bottom: 4px;
+    padding: 1px 6px;
+    background: var(--bg-elev);
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    line-height: 1.4;
+}
+.parent-chip:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    text-decoration: none;
+}
+
 .needs-context {
     background: rgba(251, 191, 36, 0.1);
     border: 1px solid rgba(251, 191, 36, 0.35);

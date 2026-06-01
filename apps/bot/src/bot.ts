@@ -2,6 +2,7 @@ import {
     CATEGORIES,
     env,
     generateDailyPlan,
+    getParentTitles,
     getProfile,
     listEntries,
     listPlanCandidates,
@@ -106,7 +107,8 @@ export function createBot(): Telegraf {
                 await ctx.reply('Нет свободных задач в now / this_week. Скинь идею.')
                 return
             }
-            const plan = await generateDailyPlan(candidates, undefined, profile.about_me, resumes)
+            const parentTitles = await getParentTitles(candidates)
+            const plan = await generateDailyPlan(candidates, undefined, profile.about_me, resumes, parentTitles)
             if (plan.selected_ids.length === 0) {
                 await ctx.reply('AI не выбрал ни одной задачи.')
                 return

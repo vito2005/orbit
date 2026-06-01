@@ -219,6 +219,24 @@ export interface SubtaskCount {
     done: number
 }
 
+export async function getParentTitles(entries: Entry[]): Promise<Record<string, string>> {
+    const parentIds = [...new Set(entries.map((e) => e.parent_id).filter((id): id is string => id !== null))]
+    if (parentIds.length === 0) {
+        return {}
+    }
+    const supabase = getSupabase()
+    const { data, error } = await supabase.from('entries').select('id, title').in('id', parentIds)
+    if (error) {
+        throw new Error(`DB parent titles failed: ${error.message}`)
+    }
+    const map: Record<string, string> = {}
+    for (const row of data ?? []) {
+        const r = row as { id: string; title: string }
+        map[r.id] = r.title
+    }
+    return map
+}
+
 export async function countSubtasksByParent(parentIds: string[]): Promise<Map<string, SubtaskCount>> {
     const result = new Map<string, SubtaskCount>()
     if (parentIds.length === 0) {
