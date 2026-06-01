@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import { env } from './env'
-import type { DailyPlan, Entry, NewEntry } from './types'
+import type { DailyPlan, Entry, NewEntry, UserProfile } from './types'
 
 let cached: SupabaseClient | null = null
 
@@ -304,6 +304,40 @@ export async function setCategory(id: string, category: string): Promise<void> {
     const supabase = getSupabase()
     const { error } = await supabase.from('entries').update({ category }).eq('id', id)
     if (error) throw new Error(`DB set category failed: ${error.message}`)
+}
+
+export async function setMotivation(id: string, motivation: string | null): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('entries').update({ motivation }).eq('id', id)
+    if (error) throw new Error(`DB set motivation failed: ${error.message}`)
+}
+
+export async function getProfile(): Promise<UserProfile> {
+    const supabase = getSupabase()
+    const { data, error } = await supabase
+        .from('user_profile')
+        .select('about_me, updated_at')
+        .eq('id', true)
+        .maybeSingle()
+    if (error) {
+        throw new Error(`DB profile get failed: ${error.message}`)
+    }
+    return (
+        (data as UserProfile | null) ?? {
+            about_me: '',
+            updated_at: new Date().toISOString(),
+        }
+    )
+}
+
+export async function saveProfile(aboutMe: string): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase
+        .from('user_profile')
+        .upsert({ id: true, about_me: aboutMe, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+    if (error) {
+        throw new Error(`DB profile save failed: ${error.message}`)
+    }
 }
 
 export async function scheduleFor(id: string, date: string | null): Promise<void> {

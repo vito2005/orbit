@@ -2,13 +2,16 @@ import {
     archiveEntry,
     CATEGORIES,
     deleteEntry,
+    generateMotivation,
     getEntry,
+    getProfile,
     insertEntry,
     listSubtasksOf,
     type NewEntry,
     PRIORITIES,
     scheduleFor,
     setCategory,
+    setMotivation,
     setPriority,
     type SubtaskSuggestion,
     suggestSubtasks,
@@ -74,11 +77,32 @@ export const actions: Actions = {
         if (!entry) {
             return fail(404, { error: 'entry not found' })
         }
-        const suggestions = await suggestSubtasks(entry)
+        const profile = await getProfile()
+        const suggestions = await suggestSubtasks(entry, profile.about_me)
         if (suggestions.length === 0) {
             return fail(500, { error: 'AI не вернул подзадачи.' })
         }
         return { suggestions }
+    },
+    generateMotivation: async ({ params }) => {
+        const entry = await getEntry(params.id as string)
+        if (!entry) {
+            return fail(404, { error: 'entry not found' })
+        }
+        const [parent, profile] = await Promise.all([
+            entry.parent_id ? getEntry(entry.parent_id) : Promise.resolve(null),
+            getProfile(),
+        ])
+        const text = await generateMotivation(entry, parent, profile.about_me)
+        if (!text) {
+            return fail(500, { error: 'AI не вернул мотивацию.' })
+        }
+        await setMotivation(entry.id, text)
+        throw redirect(303, `/entries/${entry.id}`)
+    },
+    clearMotivation: async ({ params }) => {
+        await setMotivation(params.id as string, null)
+        throw redirect(303, `/entries/${params.id}`)
     },
     createSubtasks: async ({ params, request }) => {
         const parent = await getEntry(params.id as string)

@@ -43,6 +43,29 @@
     </div>
     <EntryEdit entry={e} redirectTo="/entries/{e.id}" />
 
+    <section class="motivation-section">
+        <h2>Зачем мне это</h2>
+        {#if e.motivation}
+            <p class="motivation-text">{e.motivation}</p>
+            <div class="motivation-actions">
+                <form method="POST" action="?/generateMotivation">
+                    <button type="submit" class="btn-secondary">Перегенерировать</button>
+                </form>
+                <form method="POST" action="?/clearMotivation">
+                    <button type="submit" class="link-button">очистить</button>
+                </form>
+            </div>
+        {:else}
+            <p class="muted" style="font-size: 13px; margin: 0 0 8px;">
+                Пока пусто. Попроси AI связать задачу с твоими north stars и описать что ты получишь, если доведёшь до
+                конца.
+            </p>
+            <form method="POST" action="?/generateMotivation">
+                <button type="submit" class="btn-primary">AI: написать мотивацию</button>
+            </form>
+        {/if}
+    </section>
+
     {#if e.summary}
         <section>
             <h2>Summary</h2>

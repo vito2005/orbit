@@ -148,6 +148,17 @@ function normalizeAnalysis(input: unknown, transcript: string): AIAnalysis {
     }
 }
 
+function buildContext(profile?: string): string {
+    const trimmed = (profile ?? '').trim().slice(0, 2500)
+    if (trimmed.length === 0) {
+        return NORTH_STARS
+    }
+    return `${NORTH_STARS}
+
+About the user (free-form profile they wrote — treat as ground truth about their background, skills, current life situation):
+${trimmed}`
+}
+
 const NORTH_STARS = `User's north stars for the next 1-2 years:
 - Career axis: high-paid frontend / creative engineering / 3D engineer (international market)
 - Income: from $3k/month → $7.5k/month (~$90k/year)
@@ -170,7 +181,11 @@ export interface DailyPlanSelection {
 
 const WEEKDAY_RU = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота']
 
-export async function generateDailyPlan(candidates: Entry[], targetDate?: string): Promise<DailyPlanSelection> {
+export async function generateDailyPlan(
+    candidates: Entry[],
+    targetDate?: string,
+    profile?: string,
+): Promise<DailyPlanSelection> {
     if (candidates.length === 0) {
         return { selected_ids: [], reasoning: 'No unscheduled tasks in this_week or now.', explanations: {} }
     }
@@ -201,7 +216,7 @@ export async function generateDailyPlan(candidates: Entry[], targetDate?: string
 
 Planning for: ${dateStr} (${dayName}, ${isWeekend ? 'weekend — more time' : 'weekday — tight ~1-2h slot'}).
 
-${NORTH_STARS}
+${buildContext(profile)}
 
 Return STRICT JSON:
 {
@@ -261,7 +276,11 @@ export interface WeeklyPlanSelection {
     reasoning: string
 }
 
-export async function generateWeeklyPlan(candidates: Entry[], sprint: Sprint): Promise<WeeklyPlanSelection> {
+export async function generateWeeklyPlan(
+    candidates: Entry[],
+    sprint: Sprint,
+    profile?: string,
+): Promise<WeeklyPlanSelection> {
     if (candidates.length === 0) {
         return { selected_ids: [], reasoning: 'Backlog пуст.' }
     }
@@ -291,7 +310,7 @@ export async function generateWeeklyPlan(candidates: Entry[], sprint: Sprint): P
                 role: 'system',
                 content: `You help the user plan a WEEKLY SPRINT (Mon-Sun). From the backlog pool below, pick a SCALED number of tasks to commit to for the remaining days in the sprint. Balance categories — don't pick only work, or only content. Strongly prefer tasks that move the career axis (work, 3d) and the primary content channel (YouTube). Account for the time budget below.
 
-${NORTH_STARS}
+${buildContext(profile)}
 
 Sprint window: ${sprint.label}.
 Days remaining in sprint: ${sprint.daysLeft} (0 = last day today, 6-7 = fresh start of week).
@@ -341,12 +360,55 @@ Return JSON only. No prose, no fences.`,
     }
 }
 
+export async function generateMotivation(entry: Entry, parent: Entry | null = null, profile?: string): Promise<string> {
+    const completion = await client().chat.completions.create({
+        model: env.OPENAI_CHAT_MODEL,
+        temperature: 0.6,
+        messages: [
+            {
+                role: 'system',
+                content: `You write motivational reasoning for one specific long-term task. Goal: in 3-5 sentences IN RUSSIAN, explain WHY this task matters — connect to north stars, name the concrete reward on a realistic timeline, and end with what's lost by dropping it.
+
+Tone rules:
+- Direct and slightly emotional. NO flattery ("ты молодец", "у тебя получится", "ты сможешь").
+- Honest about effort and the path, not aspirational fluff.
+- Reference SPECIFIC north stars when relevant (career axis, YouTube subs, income, Three.js course).
+- Estimate a realistic outcome window ("через 2-3 месяца", "к концу спринта", etc.).
+- End with a sentence about the COST of dropping it (lost momentum, opportunity, etc.).
+
+${buildContext(profile)}
+
+Return plain text. No JSON, no markdown headers, no quotes — just the motivation paragraph.`,
+            },
+            {
+                role: 'user',
+                content: JSON.stringify({
+                    title: entry.title,
+                    summary: entry.summary,
+                    transcript: entry.transcript.slice(0, 1500),
+                    next_action: entry.next_action,
+                    category: entry.category,
+                    tags: entry.tags,
+                    parent: parent
+                        ? {
+                              title: parent.title,
+                              motivation: parent.motivation,
+                          }
+                        : null,
+                }),
+            },
+        ],
+    })
+    const raw = completion.choices[0]?.message?.content ?? ''
+    return raw.trim()
+}
+
 export interface SubtaskSuggestion {
     title: string
     next_action: string | null
 }
 
-export async function suggestSubtasks(entry: Entry): Promise<SubtaskSuggestion[]> {
+export async function suggestSubtasks(entry: Entry, profile?: string): Promise<SubtaskSuggestion[]> {
     const completion = await client().chat.completions.create({
         model: env.OPENAI_CHAT_MODEL,
         response_format: { type: 'json_object' },
@@ -360,7 +422,7 @@ export async function suggestSubtasks(entry: Entry): Promise<SubtaskSuggestion[]
 - Be doable independently — they can be picked in any order
 - Be in the SAME language as the parent task (usually Russian)
 
-${NORTH_STARS}
+${buildContext(profile)}
 
 Return STRICT JSON:
 {

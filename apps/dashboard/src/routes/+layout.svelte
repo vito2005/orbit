@@ -17,6 +17,7 @@
                 <a href="/week">Week</a>
                 <a href="/inbox">Inbox</a>
                 <a href="/inbox?priority=archive">📦 Archive</a>
+                <a href="/profile">Profile</a>
                 <form method="POST" action="/logout" class="logout-form">
                     <button type="submit">Logout</button>
                 </form>

@@ -50,9 +50,10 @@ export interface Entry {
     scheduled_for: string | null
     done_at: string | null
     parent_id: string | null
+    motivation: string | null
 }
 
-export type NewEntry = Omit<Entry, 'id' | 'created_at' | 'scheduled_for' | 'done_at'>
+export type NewEntry = Omit<Entry, 'id' | 'created_at' | 'scheduled_for' | 'done_at' | 'motivation'>
 
 export interface DailyPlan {
     date: string
@@ -69,4 +70,9 @@ export interface Sprint {
     daysIn: number
     daysLeft: number
     label: string
+}
+
+export interface UserProfile {
+    about_me: string
+    updated_at: string
 }

@@ -2,6 +2,7 @@ import {
     CATEGORIES,
     env,
     generateDailyPlan,
+    getProfile,
     listEntries,
     listPlanCandidates,
     listTodayPlan,
@@ -78,12 +79,12 @@ export function createBot(): Telegraf {
     bot.command('plan', async (ctx) => {
         try {
             await ctx.sendChatAction('typing')
-            const candidates = await listPlanCandidates()
+            const [candidates, profile] = await Promise.all([listPlanCandidates(), getProfile()])
             if (candidates.length === 0) {
                 await ctx.reply('Нет свободных задач в now / this_week. Скинь идею.')
                 return
             }
-            const plan = await generateDailyPlan(candidates)
+            const plan = await generateDailyPlan(candidates, undefined, profile.about_me)
             if (plan.selected_ids.length === 0) {
                 await ctx.reply('AI не выбрал ни одной задачи.')
                 return

@@ -748,6 +748,50 @@ a:hover {
     margin-top: 4px;
 }
 
+.motivation-section {
+    background: linear-gradient(135deg, rgba(125, 211, 252, 0.05), rgba(56, 189, 248, 0.08));
+    border-color: rgba(125, 211, 252, 0.3) !important;
+}
+.motivation-text {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+    margin: 0 0 12px;
+}
+.motivation-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.motivation-actions form {
+    margin: 0;
+}
+
+.profile-form textarea {
+    width: 100%;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: inherit;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 320px;
+    box-sizing: border-box;
+}
+.profile-form textarea:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+.profile-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 12px;
+}
+
 .empty {
     text-align: center;
     color: var(--muted);

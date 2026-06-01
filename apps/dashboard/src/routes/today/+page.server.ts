@@ -1,6 +1,7 @@
 import {
     generateDailyPlan,
     getDailyPlan,
+    getProfile,
     listPlanCandidates,
     listScheduledFor,
     markDone,
@@ -42,11 +43,11 @@ export const actions: Actions = {
         const offset = target === 'tomorrow' ? 1 : 0
         const date = localDate(offset)
 
-        const candidates = await listPlanCandidates()
+        const [candidates, profile] = await Promise.all([listPlanCandidates(), getProfile()])
         if (candidates.length === 0) {
             return fail(400, { error: 'Нет задач в now / this_week — пополни инбокс.' })
         }
-        const plan = await generateDailyPlan(candidates, date)
+        const plan = await generateDailyPlan(candidates, date, profile.about_me)
         if (plan.selected_ids.length === 0) {
             return fail(500, { error: 'AI не выбрал ни одной задачи.' })
         }
