@@ -6,6 +6,7 @@ import {
     getEntry,
     getProfile,
     insertEntry,
+    listResumes,
     listSubtasksOf,
     type NewEntry,
     PRIORITIES,
@@ -77,8 +78,8 @@ export const actions: Actions = {
         if (!entry) {
             return fail(404, { error: 'entry not found' })
         }
-        const profile = await getProfile()
-        const suggestions = await suggestSubtasks(entry, profile.about_me)
+        const [profile, resumes] = await Promise.all([getProfile(), listResumes()])
+        const suggestions = await suggestSubtasks(entry, profile.about_me, resumes)
         if (suggestions.length === 0) {
             return fail(500, { error: 'AI не вернул подзадачи.' })
         }
@@ -89,11 +90,12 @@ export const actions: Actions = {
         if (!entry) {
             return fail(404, { error: 'entry not found' })
         }
-        const [parent, profile] = await Promise.all([
+        const [parent, profile, resumes] = await Promise.all([
             entry.parent_id ? getEntry(entry.parent_id) : Promise.resolve(null),
             getProfile(),
+            listResumes(),
         ])
-        const text = await generateMotivation(entry, parent, profile.about_me)
+        const text = await generateMotivation(entry, parent, profile.about_me, resumes)
         if (!text) {
             return fail(500, { error: 'AI не вернул мотивацию.' })
         }

@@ -9,7 +9,8 @@
         "preview": "bun --bun vite preview --port 5173"
     },
     "dependencies": {
-        "@orbit/shared": "workspace:*"
+        "@orbit/shared": "workspace:*",
+        "unpdf": "^1.6.2"
     },
     "devDependencies": {
         "@sveltejs/adapter-node": "^5.5.4",

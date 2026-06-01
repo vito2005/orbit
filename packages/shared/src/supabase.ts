@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import { env } from './env'
-import type { DailyPlan, Entry, NewEntry, UserProfile } from './types'
+import type { DailyPlan, Entry, NewEntry, Resume, UserProfile } from './types'
 
 let cached: SupabaseClient | null = null
 
@@ -337,6 +337,54 @@ export async function saveProfile(aboutMe: string): Promise<void> {
         .upsert({ id: true, about_me: aboutMe, updated_at: new Date().toISOString() }, { onConflict: 'id' })
     if (error) {
         throw new Error(`DB profile save failed: ${error.message}`)
+    }
+}
+
+export async function listResumes(): Promise<Resume[]> {
+    const supabase = getSupabase()
+    const { data, error } = await supabase.from('resumes').select('*').order('created_at', { ascending: false })
+    if (error) {
+        throw new Error(`DB list resumes failed: ${error.message}`)
+    }
+    return (data ?? []) as Resume[]
+}
+
+export async function addResume(args: { label: string; contentText: string }): Promise<Resume> {
+    const supabase = getSupabase()
+    const { data, error } = await supabase
+        .from('resumes')
+        .insert({ label: args.label, content_text: args.contentText })
+        .select()
+        .single()
+    if (error) {
+        throw new Error(`DB add resume failed: ${error.message}`)
+    }
+    return data as Resume
+}
+
+export async function deleteResume(id: string): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('resumes').delete().eq('id', id)
+    if (error) {
+        throw new Error(`DB delete resume failed: ${error.message}`)
+    }
+}
+
+export async function updateResume(id: string, args: { label?: string; contentText?: string }): Promise<void> {
+    const patch: Record<string, unknown> = {}
+    if (args.label !== undefined) {
+        patch.label = args.label
+    }
+    if (args.contentText !== undefined) {
+        patch.content_text = args.contentText
+    }
+    if (Object.keys(patch).length === 0) {
+        return
+    }
+    const supabase = getSupabase()
+    const { error } = await supabase.from('resumes').update(patch).eq('id', id)
+    if (error) {
+        throw new Error(`DB update resume failed: ${error.message}`)
     }
 }
 

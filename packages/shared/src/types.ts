@@ -76,3 +76,10 @@ export interface UserProfile {
     about_me: string
     updated_at: string
 }
+
+export interface Resume {
+    id: string
+    label: string
+    content_text: string
+    created_at: string
+}

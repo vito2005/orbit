@@ -4,6 +4,7 @@ import {
     currentSprint,
     generateWeeklyPlan,
     getProfile,
+    listResumes,
     listSprintCandidates,
     listWeek,
     promoteToWeek,
@@ -29,12 +30,12 @@ export const actions: Actions = {
         throw redirect(303, `/week?moved=${moved}`)
     },
     generateSprint: async () => {
-        const [candidates, profile] = await Promise.all([listSprintCandidates(), getProfile()])
+        const [candidates, profile, resumes] = await Promise.all([listSprintCandidates(), getProfile(), listResumes()])
         if (candidates.length === 0) {
             return fail(400, { error: 'Backlog пуст. Скинь идеи в бот.' })
         }
         const sprint = currentSprint()
-        const plan = await generateWeeklyPlan(candidates, sprint, profile.about_me)
+        const plan = await generateWeeklyPlan(candidates, sprint, profile.about_me, resumes)
         if (plan.selected_ids.length === 0) {
             return fail(500, { error: 'AI не выбрал задачи.' })
         }

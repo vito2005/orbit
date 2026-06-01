@@ -1,7 +1,7 @@
 import OpenAI, { toFile } from 'openai'
 
 import { env } from './env'
-import type { Sprint } from './types'
+import type { Resume, Sprint } from './types'
 import {
     type AIAnalysis,
     CATEGORIES,
@@ -148,15 +148,41 @@ function normalizeAnalysis(input: unknown, transcript: string): AIAnalysis {
     }
 }
 
-function buildContext(profile?: string): string {
-    const trimmed = (profile ?? '').trim().slice(0, 2500)
-    if (trimmed.length === 0) {
-        return NORTH_STARS
-    }
-    return `${NORTH_STARS}
+const RESUME_TOTAL_BUDGET = 6000
+const RESUME_PER_ITEM_BUDGET = 2500
 
-About the user (free-form profile they wrote — treat as ground truth about their background, skills, current life situation):
-${trimmed}`
+function buildResumesBlock(resumes?: Resume[]): string {
+    if (!resumes || resumes.length === 0) {
+        return ''
+    }
+    const parts: string[] = []
+    let used = 0
+    for (const r of resumes) {
+        const remaining = RESUME_TOTAL_BUDGET - used
+        if (remaining <= 200) {
+            break
+        }
+        const slice = r.content_text.trim().slice(0, Math.min(remaining, RESUME_PER_ITEM_BUDGET))
+        if (slice.length === 0) {
+            continue
+        }
+        parts.push(`Resume "${r.label}":\n${slice}`)
+        used += slice.length
+    }
+    if (parts.length === 0) {
+        return ''
+    }
+    return `\n\nResumes (the user has uploaded ${parts.length} resume version${parts.length > 1 ? 's' : ''} tailored for different roles — read all of them together to understand the user's full experience, do NOT pick one over another):\n\n${parts.join('\n\n---\n\n')}`
+}
+
+function buildContext(profile?: string, resumes?: Resume[]): string {
+    let s = NORTH_STARS
+    const profileText = (profile ?? '').trim().slice(0, 2500)
+    if (profileText.length > 0) {
+        s += `\n\nAbout the user (free-form profile they wrote — treat as ground truth about their background, skills, current life situation):\n${profileText}`
+    }
+    s += buildResumesBlock(resumes)
+    return s
 }
 
 const NORTH_STARS = `User's north stars for the next 1-2 years:
@@ -185,6 +211,7 @@ export async function generateDailyPlan(
     candidates: Entry[],
     targetDate?: string,
     profile?: string,
+    resumes?: Resume[],
 ): Promise<DailyPlanSelection> {
     if (candidates.length === 0) {
         return { selected_ids: [], reasoning: 'No unscheduled tasks in this_week or now.', explanations: {} }
@@ -216,7 +243,7 @@ export async function generateDailyPlan(
 
 Planning for: ${dateStr} (${dayName}, ${isWeekend ? 'weekend — more time' : 'weekday — tight ~1-2h slot'}).
 
-${buildContext(profile)}
+${buildContext(profile, resumes)}
 
 Return STRICT JSON:
 {
@@ -280,6 +307,7 @@ export async function generateWeeklyPlan(
     candidates: Entry[],
     sprint: Sprint,
     profile?: string,
+    resumes?: Resume[],
 ): Promise<WeeklyPlanSelection> {
     if (candidates.length === 0) {
         return { selected_ids: [], reasoning: 'Backlog пуст.' }
@@ -310,7 +338,7 @@ export async function generateWeeklyPlan(
                 role: 'system',
                 content: `You help the user plan a WEEKLY SPRINT (Mon-Sun). From the backlog pool below, pick a SCALED number of tasks to commit to for the remaining days in the sprint. Balance categories — don't pick only work, or only content. Strongly prefer tasks that move the career axis (work, 3d) and the primary content channel (YouTube). Account for the time budget below.
 
-${buildContext(profile)}
+${buildContext(profile, resumes)}
 
 Sprint window: ${sprint.label}.
 Days remaining in sprint: ${sprint.daysLeft} (0 = last day today, 6-7 = fresh start of week).
@@ -360,7 +388,12 @@ Return JSON only. No prose, no fences.`,
     }
 }
 
-export async function generateMotivation(entry: Entry, parent: Entry | null = null, profile?: string): Promise<string> {
+export async function generateMotivation(
+    entry: Entry,
+    parent: Entry | null = null,
+    profile?: string,
+    resumes?: Resume[],
+): Promise<string> {
     const completion = await client().chat.completions.create({
         model: env.OPENAI_CHAT_MODEL,
         temperature: 0.6,
@@ -376,7 +409,7 @@ Tone rules:
 - Estimate a realistic outcome window ("через 2-3 месяца", "к концу спринта", etc.).
 - End with a sentence about the COST of dropping it (lost momentum, opportunity, etc.).
 
-${buildContext(profile)}
+${buildContext(profile, resumes)}
 
 Return plain text. No JSON, no markdown headers, no quotes — just the motivation paragraph.`,
             },
@@ -408,7 +441,11 @@ export interface SubtaskSuggestion {
     next_action: string | null
 }
 
-export async function suggestSubtasks(entry: Entry, profile?: string): Promise<SubtaskSuggestion[]> {
+export async function suggestSubtasks(
+    entry: Entry,
+    profile?: string,
+    resumes?: Resume[],
+): Promise<SubtaskSuggestion[]> {
     const completion = await client().chat.completions.create({
         model: env.OPENAI_CHAT_MODEL,
         response_format: { type: 'json_object' },
@@ -422,7 +459,7 @@ export async function suggestSubtasks(entry: Entry, profile?: string): Promise<S
 - Be doable independently — they can be picked in any order
 - Be in the SAME language as the parent task (usually Russian)
 
-${buildContext(profile)}
+${buildContext(profile, resumes)}
 
 Return STRICT JSON:
 {
