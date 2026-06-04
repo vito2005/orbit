@@ -8,9 +8,7 @@ import {
     listPlanCandidates,
     listResumes,
     listTodayPlan,
-    saveProfile,
     scheduleEntries,
-    transcribeAudio,
     weeklyReview,
 } from '@orbit/shared'
 import { Telegraf } from 'telegraf'
@@ -19,19 +17,6 @@ import { message } from 'telegraf/filters'
 import { categoryLabel, formatList, formatSaved } from './format.ts'
 import { log } from './log.ts'
 import { processText, processVoice } from './process.ts'
-
-// Single-user, single-instance bot — module-scoped state is fine.
-// 5-minute window after /profile during which the next message replaces the profile.
-const PROFILE_UPDATE_TIMEOUT_MS = 5 * 60 * 1000
-let profileUpdateExpiresAt: number | null = null
-
-function profileModeActive(): boolean {
-    return profileUpdateExpiresAt !== null && Date.now() < profileUpdateExpiresAt
-}
-
-function endProfileMode(): void {
-    profileUpdateExpiresAt = null
-}
 
 export function createBot(): Telegraf {
     const bot = new Telegraf(env.TELEGRAM_BOT_TOKEN)
@@ -57,9 +42,7 @@ export function createBot(): Telegraf {
                 '/today — план на сегодня',
                 '/plan — AI собирает план на сегодня',
                 '/week — AI обзор за 7 дней',
-                '/profile — посмотреть / обновить профиль (следующим сообщением)',
                 '/categories — список категорий',
-                '/cancel — отменить ожидающую операцию',
             ].join('\n'),
             { parse_mode: 'Markdown' },
         )
@@ -125,37 +108,6 @@ export function createBot(): Telegraf {
         }
     })
 
-    bot.command('profile', async (ctx) => {
-        try {
-            const profile = await getProfile()
-            profileUpdateExpiresAt = Date.now() + PROFILE_UPDATE_TIMEOUT_MS
-            const preview =
-                profile.about_me.length > 0
-                    ? `*Текущий профиль* (${profile.about_me.length} символов):\n\n` +
-                      profile.about_me.slice(0, 500) +
-                      (profile.about_me.length > 500 ? '…' : '')
-                    : '_Профиль пустой._'
-            await ctx.reply(
-                preview +
-                    `\n\n👇 Скинь следующим сообщением *голосовое* или *текст* — заменю профиль целиком. ` +
-                    `5 минут на отмену, любая другая команда тоже отменит.`,
-                { parse_mode: 'Markdown' },
-            )
-        } catch (err) {
-            log.error('profile show failed', err)
-            await ctx.reply('Failed to load profile.')
-        }
-    })
-
-    bot.command('cancel', async (ctx) => {
-        if (profileModeActive()) {
-            endProfileMode()
-            await ctx.reply('Обновление профиля отменено.')
-        } else {
-            await ctx.reply('Нет активной операции для отмены.')
-        }
-    })
-
     bot.command('week', async (ctx) => {
         try {
             await ctx.sendChatAction('typing')
@@ -177,14 +129,6 @@ export function createBot(): Telegraf {
             if (!res.ok) throw new Error(`Telegram file fetch ${res.status}`)
             const buf = await res.arrayBuffer()
             const ext = fileNameFromUrl(link.toString())
-
-            if (profileModeActive()) {
-                endProfileMode()
-                const transcript = await transcribeAudio(buf, ext)
-                await saveProfile(transcript)
-                await ctx.reply(`✅ Профиль обновлён (${transcript.length} символов).`)
-                return
-            }
 
             const entry = await processVoice({
                 fileBytes: buf,
@@ -223,13 +167,6 @@ export function createBot(): Telegraf {
         const text = ctx.message.text.trim()
         if (text.startsWith('/')) return // unknown command
         try {
-            if (profileModeActive()) {
-                endProfileMode()
-                await saveProfile(text)
-                await ctx.reply(`✅ Профиль обновлён (${text.length} символов).`)
-                return
-            }
-
             await ctx.sendChatAction('typing')
             const entry = await processText({
                 text,
