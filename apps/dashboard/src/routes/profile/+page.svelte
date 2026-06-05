@@ -57,6 +57,52 @@
 </section>
 
 <section class="plan-section">
+    <h2>AI Usage</h2>
+    <div class="usage-grid">
+        <div class="usage-cell">
+            <div class="usage-label">Сегодня</div>
+            <div class="usage-value">${data.usage.today.toFixed(4)}</div>
+        </div>
+        <div class="usage-cell">
+            <div class="usage-label">За 7 дней</div>
+            <div class="usage-value">${data.usage.week.toFixed(4)}</div>
+        </div>
+        <div class="usage-cell">
+            <div class="usage-label">За 30 дней</div>
+            <div class="usage-value">${data.usage.month.toFixed(4)}</div>
+        </div>
+        <div class="usage-cell">
+            <div class="usage-label">Всего</div>
+            <div class="usage-value">${data.usage.allTime.toFixed(4)}</div>
+        </div>
+    </div>
+    {#if Object.keys(data.usage.byFunction).length > 0}
+        <table class="usage-breakdown">
+            <thead>
+                <tr>
+                    <th>Функция</th>
+                    <th>Вызовов</th>
+                    <th>Стоимость</th>
+                </tr>
+            </thead>
+            <tbody>
+                {#each Object.entries(data.usage.byFunction).sort((a, b) => b[1].cost - a[1].cost) as [fn, stat] (fn)}
+                    <tr>
+                        <td>{fn}</td>
+                        <td>{stat.calls}</td>
+                        <td>${stat.cost.toFixed(4)}</td>
+                    </tr>
+                {/each}
+            </tbody>
+        </table>
+    {/if}
+    <p class="muted" style="font-size: 11px; margin: 8px 0 0;">
+        Это локальный подсчёт по нашим вызовам (не Whisper). Реальный счёт OpenAI смотри на
+        <a href="https://platform.openai.com/usage" target="_blank" rel="noopener">platform.openai.com/usage</a>.
+    </p>
+</section>
+
+<section class="plan-section">
     <h2>Резюме ({data.resumes.length})</h2>
 
     <form method="POST" action="?/uploadResume" enctype="multipart/form-data" class="resume-upload">

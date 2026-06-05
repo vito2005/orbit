@@ -1,6 +1,7 @@
 import OpenAI, { toFile } from 'openai'
 
 import { env } from './env'
+import { recordAIUsage } from './supabase'
 import type { Resume, Sprint } from './types'
 import {
     type AIAnalysis,
@@ -19,6 +20,47 @@ function client(): OpenAI {
     if (cached) return cached
     cached = new OpenAI({ apiKey: env.OPENAI_API_KEY })
     return cached
+}
+
+// Prices in USD per 1M tokens. Update when OpenAI changes.
+const MODEL_PRICES: Record<string, { input: number; output: number }> = {
+    'gpt-4o': { input: 2.5, output: 10 },
+    'gpt-4o-2024-08-06': { input: 2.5, output: 10 },
+    'gpt-4o-2024-11-20': { input: 2.5, output: 10 },
+    'gpt-4o-mini': { input: 0.15, output: 0.6 },
+    'gpt-4o-mini-2024-07-18': { input: 0.15, output: 0.6 },
+    'gpt-4.1': { input: 2, output: 8 },
+    'gpt-4.1-mini': { input: 0.4, output: 1.6 },
+    'gpt-5': { input: 1.25, output: 10 },
+}
+
+function calculateCost(model: string, promptTokens: number, completionTokens: number): number {
+    const prices = MODEL_PRICES[model] ?? { input: 2.5, output: 10 }
+    return (promptTokens * prices.input + completionTokens * prices.output) / 1_000_000
+}
+
+async function chatCompletion(
+    params: Parameters<OpenAI['chat']['completions']['create']>[0] & { stream?: false | undefined },
+    functionName: string,
+): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+    const completion = (await client().chat.completions.create(params)) as OpenAI.Chat.Completions.ChatCompletion
+    if (completion.usage) {
+        const model = typeof params.model === 'string' ? params.model : env.OPENAI_CHAT_MODEL
+        const cost = calculateCost(model, completion.usage.prompt_tokens, completion.usage.completion_tokens)
+        try {
+            await recordAIUsage({
+                model,
+                function_name: functionName,
+                prompt_tokens: completion.usage.prompt_tokens,
+                completion_tokens: completion.usage.completion_tokens,
+                cost_usd: cost,
+            })
+        } catch (err) {
+            // Don't fail the AI call if usage logging fails.
+            console.error('Failed to record AI usage', err)
+        }
+    }
+    return completion
 }
 
 export async function transcribeAudio(audio: ArrayBuffer | Uint8Array, fileName: string): Promise<string> {
@@ -79,15 +121,18 @@ Priority rules (be CONSERVATIVE — sprint planning happens separately):
 Return JSON only. No prose, no markdown fences.`
 
 export async function analyze(transcript: string): Promise<AIAnalysis> {
-    const completion = await client().chat.completions.create({
-        model: env.OPENAI_CHAT_MODEL,
-        response_format: { type: 'json_object' },
-        temperature: 0.3,
-        messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: transcript },
-        ],
-    })
+    const completion = await chatCompletion(
+        {
+            model: env.OPENAI_CHAT_MODEL,
+            response_format: { type: 'json_object' },
+            temperature: 0.3,
+            messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: transcript },
+            ],
+        },
+        'analyze',
+    )
 
     const raw = completion.choices[0]?.message?.content ?? '{}'
     let parsed: unknown
@@ -234,14 +279,17 @@ export async function generateDailyPlan(
         tags: e.tags,
     }))
 
-    const completion = await client().chat.completions.create({
-        model: env.OPENAI_CHAT_MODEL,
-        response_format: { type: 'json_object' },
-        temperature: 0.3,
-        messages: [
-            {
-                role: 'system',
-                content: `You are a personal planning assistant. Given a pool of the user's tasks and their north stars, pick 3-5 tasks for the SPECIFIC day below. Balance categories — don't pick only work, or only content. Prefer tasks that move north stars (3d, content, work-promotion, money). Avoid picking energy="high" for more than 1-2 items.
+    const completion = await chatCompletion(
+        {
+            model: env.OPENAI_CHAT_MODEL,
+            response_format: { type: 'json_object' },
+            temperature: 0.3,
+            messages: [
+                {
+                    role: 'system',
+                    content: `You are a personal planning assistant. Given a pool of the user's tasks and their north stars, pick 3-5 tasks for the SPECIFIC day below. Balance categories — don't pick only work, or only content. Prefer tasks that move north stars (3d, content, work-promotion, money). Avoid picking energy="high" for more than 1-2 items.
+
+CRITICAL — sequential subtasks: when multiple candidates share the same parent_title AND have numeric/alphabetic ordering in their titles (e.g. "Урок 20 — ...", "Урок 21 — ...", "Глава 4 — ...", "Chapter A.2 — ..."), ALWAYS pick the lowest-numbered open one first. Never skip ahead. Courses, books, tutorials must be followed in order — the user can't do "Урок 22" before completing "Урок 20".
 
 Planning for: ${dateStr} (${dayName}, ${isWeekend ? 'weekend — more time' : 'weekday — tight ~1-2h slot'}).
 
@@ -257,13 +305,15 @@ Return STRICT JSON:
 }
 
 Return JSON only. No prose, no fences.`,
-            },
-            {
-                role: 'user',
-                content: JSON.stringify(compact, null, 2),
-            },
-        ],
-    })
+                },
+                {
+                    role: 'user',
+                    content: JSON.stringify(compact, null, 2),
+                },
+            ],
+        },
+        'daily_plan',
+    )
 
     const raw = completion.choices[0]?.message?.content ?? '{}'
     let parsed: unknown
@@ -333,14 +383,17 @@ export async function generateWeeklyPlan(
         tags: e.tags,
     }))
 
-    const completion = await client().chat.completions.create({
-        model: env.OPENAI_CHAT_MODEL,
-        response_format: { type: 'json_object' },
-        temperature: 0.3,
-        messages: [
-            {
-                role: 'system',
-                content: `You help the user plan a WEEKLY SPRINT (Mon-Sun). From the backlog pool below, pick a SCALED number of tasks to commit to for the remaining days in the sprint. Balance categories — don't pick only work, or only content. Strongly prefer tasks that move the career axis (work, 3d) and the primary content channel (YouTube). Account for the time budget below.
+    const completion = await chatCompletion(
+        {
+            model: env.OPENAI_CHAT_MODEL,
+            response_format: { type: 'json_object' },
+            temperature: 0.3,
+            messages: [
+                {
+                    role: 'system',
+                    content: `You help the user plan a WEEKLY SPRINT (Mon-Sun). From the backlog pool below, pick a SCALED number of tasks to commit to for the remaining days in the sprint. Balance categories — don't pick only work, or only content. Strongly prefer tasks that move the career axis (work, 3d) and the primary content channel (YouTube). Account for the time budget below.
+
+CRITICAL — sequential subtasks: when multiple candidates share the same parent_title AND have numeric/alphabetic ordering in their titles (e.g. "Урок 20", "Глава 4", "Chapter A.2"), pick them in order — start from the lowest-numbered open one. Don't include "Урок 25" if "Урок 22" is still open. Courses and books are sequential.
 
 ${buildContext(profile, resumes)}
 
@@ -363,13 +416,15 @@ Return STRICT JSON:
 }
 
 Return JSON only. No prose, no fences.`,
-            },
-            {
-                role: 'user',
-                content: JSON.stringify(compact, null, 2),
-            },
-        ],
-    })
+                },
+                {
+                    role: 'user',
+                    content: JSON.stringify(compact, null, 2),
+                },
+            ],
+        },
+        'weekly_plan',
+    )
 
     const raw = completion.choices[0]?.message?.content ?? '{}'
     let parsed: unknown
@@ -398,13 +453,14 @@ export async function generateMotivation(
     profile?: string,
     resumes?: Resume[],
 ): Promise<string> {
-    const completion = await client().chat.completions.create({
-        model: env.OPENAI_CHAT_MODEL,
-        temperature: 0.6,
-        messages: [
-            {
-                role: 'system',
-                content: `You write motivational reasoning for one specific long-term task. Goal: in 3-5 sentences IN RUSSIAN, explain WHY this task matters — connect to north stars, name the concrete reward on a realistic timeline, and end with what's lost by dropping it.
+    const completion = await chatCompletion(
+        {
+            model: env.OPENAI_CHAT_MODEL,
+            temperature: 0.6,
+            messages: [
+                {
+                    role: 'system',
+                    content: `You write motivational reasoning for one specific long-term task. Goal: in 3-5 sentences IN RUSSIAN, explain WHY this task matters — connect to north stars, name the concrete reward on a realistic timeline, and end with what's lost by dropping it.
 
 Tone rules:
 - Direct and slightly emotional. NO flattery ("ты молодец", "у тебя получится", "ты сможешь").
@@ -416,28 +472,30 @@ Tone rules:
 ${buildContext(profile, resumes)}
 
 Return plain text. No JSON, no markdown headers, no quotes — just the motivation paragraph.`,
-            },
-            {
-                role: 'user',
-                content: JSON.stringify({
-                    title: entry.title,
-                    summary: entry.summary,
-                    transcript: entry.transcript.slice(0, 1500),
-                    next_action: entry.next_action,
-                    category: entry.category,
-                    tags: entry.tags,
-                    extra_context: entry.extra_context,
-                    parent: parent
-                        ? {
-                              title: parent.title,
-                              motivation: parent.motivation,
-                              extra_context: parent.extra_context,
-                          }
-                        : null,
-                }),
-            },
-        ],
-    })
+                },
+                {
+                    role: 'user',
+                    content: JSON.stringify({
+                        title: entry.title,
+                        summary: entry.summary,
+                        transcript: entry.transcript.slice(0, 1500),
+                        next_action: entry.next_action,
+                        category: entry.category,
+                        tags: entry.tags,
+                        extra_context: entry.extra_context,
+                        parent: parent
+                            ? {
+                                  title: parent.title,
+                                  motivation: parent.motivation,
+                                  extra_context: parent.extra_context,
+                              }
+                            : null,
+                    }),
+                },
+            ],
+        },
+        'motivation',
+    )
     const raw = completion.choices[0]?.message?.content ?? ''
     return raw.trim()
 }
@@ -452,14 +510,15 @@ export type SubtaskResult =
     | { kind: 'needs_context'; question: string }
 
 export async function suggestSubtasks(entry: Entry, profile?: string, resumes?: Resume[]): Promise<SubtaskResult> {
-    const completion = await client().chat.completions.create({
-        model: env.OPENAI_CHAT_MODEL,
-        response_format: { type: 'json_object' },
-        temperature: 0.4,
-        messages: [
-            {
-                role: 'system',
-                content: `You help break down ONE large task. CRITICAL RULE: do not hallucinate structure you don't actually know.
+    const completion = await chatCompletion(
+        {
+            model: env.OPENAI_CHAT_MODEL,
+            response_format: { type: 'json_object' },
+            temperature: 0.4,
+            messages: [
+                {
+                    role: 'system',
+                    content: `You help break down ONE large task. CRITICAL RULE: do not hallucinate structure you don't actually know.
 
 The user may provide source material in the "extra_context" field — course curriculum (ToC), brief, design spec, links, etc. Use that as ground truth.
 
@@ -487,21 +546,23 @@ Each subtask (when you DO return them) should:
 ${buildContext(profile, resumes)}
 
 Return JSON only. No prose, no fences.`,
-            },
-            {
-                role: 'user',
-                content: JSON.stringify({
-                    title: entry.title,
-                    summary: entry.summary,
-                    transcript: entry.transcript.slice(0, 2000),
-                    next_action: entry.next_action,
-                    category: entry.category,
-                    tags: entry.tags,
-                    extra_context: entry.extra_context,
-                }),
-            },
-        ],
-    })
+                },
+                {
+                    role: 'user',
+                    content: JSON.stringify({
+                        title: entry.title,
+                        summary: entry.summary,
+                        transcript: entry.transcript.slice(0, 2000),
+                        next_action: entry.next_action,
+                        category: entry.category,
+                        tags: entry.tags,
+                        extra_context: entry.extra_context,
+                    }),
+                },
+            ],
+        },
+        'subtasks',
+    )
     const raw = completion.choices[0]?.message?.content ?? '{}'
     let parsed: unknown
     try {
@@ -546,13 +607,14 @@ export async function weeklyReview(entries: Entry[]): Promise<string> {
         tags: e.tags,
     }))
 
-    const completion = await client().chat.completions.create({
-        model: env.OPENAI_CHAT_MODEL,
-        temperature: 0.5,
-        messages: [
-            {
-                role: 'system',
-                content: `You are a concise weekly coach. Given a list of the user's entries from the last 7 days, produce a short Russian-language review with these sections (use plain text, no markdown headings beyond bold):
+    const completion = await chatCompletion(
+        {
+            model: env.OPENAI_CHAT_MODEL,
+            temperature: 0.5,
+            messages: [
+                {
+                    role: 'system',
+                    content: `You are a concise weekly coach. Given a list of the user's entries from the last 7 days, produce a short Russian-language review with these sections (use plain text, no markdown headings beyond bold):
 
 *Главные темы недели* — 3-5 bullets
 *Незавершённые важные идеи* — bullets, mention category
@@ -560,13 +622,15 @@ export async function weeklyReview(entries: Entry[]): Promise<string> {
 *Топ-3 next actions* — numbered list, each item is a concrete action
 
 Keep it under ~250 words.`,
-            },
-            {
-                role: 'user',
-                content: JSON.stringify(compact, null, 2),
-            },
-        ],
-    })
+                },
+                {
+                    role: 'user',
+                    content: JSON.stringify(compact, null, 2),
+                },
+            ],
+        },
+        'weekly_review',
+    )
 
     return completion.choices[0]?.message?.content?.trim() ?? 'Could not generate review.'
 }

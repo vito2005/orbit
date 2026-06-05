@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import { env } from './env'
-import type { DailyPlan, Entry, NewEntry, Resume, UserProfile } from './types'
+import type { AIUsageSummary, DailyPlan, Entry, NewEntry, Resume, UserProfile } from './types'
 
 let cached: SupabaseClient | null = null
 
@@ -392,6 +392,56 @@ export async function deleteResume(id: string): Promise<void> {
     if (error) {
         throw new Error(`DB delete resume failed: ${error.message}`)
     }
+}
+
+export async function recordAIUsage(args: {
+    model: string
+    function_name: string
+    prompt_tokens: number
+    completion_tokens: number
+    cost_usd: number
+}): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('ai_usage').insert(args)
+    if (error) {
+        throw new Error(`DB record usage failed: ${error.message}`)
+    }
+}
+
+export async function getAIUsageSummary(): Promise<AIUsageSummary> {
+    const supabase = getSupabase()
+    const { data, error } = await supabase.from('ai_usage').select('function_name, cost_usd, created_at')
+    if (error) {
+        throw new Error(`DB usage summary failed: ${error.message}`)
+    }
+    const rows = (data ?? []) as Array<{ function_name: string; cost_usd: number; created_at: string }>
+    const now = Date.now()
+    const dayMs = 24 * 60 * 60 * 1000
+    const startOfTodayLocal = (() => {
+        const d = new Date()
+        d.setHours(0, 0, 0, 0)
+        return d.getTime()
+    })()
+    const summary: AIUsageSummary = {
+        today: 0,
+        week: 0,
+        month: 0,
+        allTime: 0,
+        byFunction: {},
+    }
+    for (const r of rows) {
+        const t = new Date(r.created_at).getTime()
+        const cost = Number(r.cost_usd) || 0
+        summary.allTime += cost
+        if (t >= startOfTodayLocal) summary.today += cost
+        if (t >= now - 7 * dayMs) summary.week += cost
+        if (t >= now - 30 * dayMs) summary.month += cost
+        const fn = summary.byFunction[r.function_name] ?? { calls: 0, cost: 0 }
+        fn.calls++
+        fn.cost += cost
+        summary.byFunction[r.function_name] = fn
+    }
+    return summary
 }
 
 export async function updateResume(id: string, args: { label?: string; contentText?: string }): Promise<void> {
