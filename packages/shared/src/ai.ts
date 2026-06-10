@@ -1,8 +1,9 @@
+import Anthropic from '@anthropic-ai/sdk'
 import OpenAI, { toFile } from 'openai'
 
 import { env } from './env'
 import { recordAIUsage } from './supabase'
-import type { Resume, Sprint } from './types'
+import type { Resume, Sprint, StrategyContext } from './types'
 import {
     type AIAnalysis,
     CATEGORIES,
@@ -14,16 +15,27 @@ import {
     type Priority,
 } from './types'
 
-let cached: OpenAI | null = null
+let openaiCached: OpenAI | null = null
+let anthropicCached: Anthropic | null = null
 
-function client(): OpenAI {
-    if (cached) return cached
-    cached = new OpenAI({ apiKey: env.OPENAI_API_KEY })
-    return cached
+function openaiClient(): OpenAI {
+    if (openaiCached) return openaiCached
+    openaiCached = new OpenAI({ apiKey: env.OPENAI_API_KEY })
+    return openaiCached
 }
 
-// Prices in USD per 1M tokens. Update when OpenAI changes.
+function anthropicClient(): Anthropic {
+    if (anthropicCached) return anthropicCached
+    if (!env.ANTHROPIC_API_KEY) {
+        throw new Error('ANTHROPIC_API_KEY is not set — required to use claude-* models.')
+    }
+    anthropicCached = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
+    return anthropicCached
+}
+
+// Prices in USD per 1M tokens.
 const MODEL_PRICES: Record<string, { input: number; output: number }> = {
+    // OpenAI
     'gpt-4o': { input: 2.5, output: 10 },
     'gpt-4o-2024-08-06': { input: 2.5, output: 10 },
     'gpt-4o-2024-11-20': { input: 2.5, output: 10 },
@@ -32,6 +44,12 @@ const MODEL_PRICES: Record<string, { input: number; output: number }> = {
     'gpt-4.1': { input: 2, output: 8 },
     'gpt-4.1-mini': { input: 0.4, output: 1.6 },
     'gpt-5': { input: 1.25, output: 10 },
+    // Anthropic (direct API pricing — without OpenRouter markup)
+    'claude-opus-4-7': { input: 15, output: 75 },
+    'claude-opus-4-8': { input: 15, output: 75 },
+    'claude-sonnet-4-6': { input: 3, output: 15 },
+    'claude-sonnet-4-7': { input: 3, output: 15 },
+    'claude-haiku-4-5': { input: 1, output: 5 },
 }
 
 function calculateCost(model: string, promptTokens: number, completionTokens: number): number {
@@ -39,28 +57,111 @@ function calculateCost(model: string, promptTokens: number, completionTokens: nu
     return (promptTokens * prices.input + completionTokens * prices.output) / 1_000_000
 }
 
-async function chatCompletion(
-    params: Parameters<OpenAI['chat']['completions']['create']>[0] & { stream?: false | undefined },
-    functionName: string,
-): Promise<OpenAI.Chat.Completions.ChatCompletion> {
-    const completion = (await client().chat.completions.create(params)) as OpenAI.Chat.Completions.ChatCompletion
-    if (completion.usage) {
-        const model = typeof params.model === 'string' ? params.model : env.OPENAI_CHAT_MODEL
-        const cost = calculateCost(model, completion.usage.prompt_tokens, completion.usage.completion_tokens)
-        try {
-            await recordAIUsage({
-                model,
-                function_name: functionName,
-                prompt_tokens: completion.usage.prompt_tokens,
-                completion_tokens: completion.usage.completion_tokens,
-                cost_usd: cost,
-            })
-        } catch (err) {
-            // Don't fail the AI call if usage logging fails.
-            console.error('Failed to record AI usage', err)
+function isAnthropicModel(model: string): boolean {
+    return model.toLowerCase().startsWith('claude-')
+}
+
+// Resolved chat model — env.OPENAI_CHAT_MODEL may say "claude-sonnet-4-6" too;
+// alternatively ANTHROPIC_CHAT_MODEL overrides specifically for Anthropic.
+function resolveChatModel(): string {
+    if (env.ANTHROPIC_CHAT_MODEL && env.ANTHROPIC_API_KEY) {
+        return env.ANTHROPIC_CHAT_MODEL
+    }
+    return env.OPENAI_CHAT_MODEL
+}
+
+// Normalized chat response — both providers map to this shape so call sites
+// don't care which one they hit.
+interface NormalizedChatResult {
+    text: string
+    promptTokens: number
+    completionTokens: number
+    model: string
+}
+
+interface NormalizedChatParams {
+    model?: string
+    systemMessage: string
+    userContent: string
+    jsonMode?: boolean
+    temperature?: number
+}
+
+async function chatCompletion(params: NormalizedChatParams, functionName: string): Promise<NormalizedChatResult> {
+    const model = params.model ?? resolveChatModel()
+    const result = isAnthropicModel(model)
+        ? await callAnthropic({ ...params, model })
+        : await callOpenAI({ ...params, model })
+
+    try {
+        await recordAIUsage({
+            model: result.model,
+            function_name: functionName,
+            prompt_tokens: result.promptTokens,
+            completion_tokens: result.completionTokens,
+            cost_usd: calculateCost(result.model, result.promptTokens, result.completionTokens),
+        })
+    } catch (err) {
+        // Don't fail the AI call if usage logging fails.
+        console.error('Failed to record AI usage', err)
+    }
+
+    return result
+}
+
+async function callOpenAI(params: NormalizedChatParams & { model: string }): Promise<NormalizedChatResult> {
+    const completion = await openaiClient().chat.completions.create({
+        model: params.model,
+        ...(params.jsonMode ? { response_format: { type: 'json_object' as const } } : {}),
+        temperature: params.temperature ?? 0.3,
+        messages: [
+            { role: 'system', content: params.systemMessage },
+            { role: 'user', content: params.userContent },
+        ],
+    })
+    const text = completion.choices[0]?.message?.content ?? ''
+    return {
+        text,
+        promptTokens: completion.usage?.prompt_tokens ?? 0,
+        completionTokens: completion.usage?.completion_tokens ?? 0,
+        model: params.model,
+    }
+}
+
+async function callAnthropic(params: NormalizedChatParams & { model: string }): Promise<NormalizedChatResult> {
+    // Anthropic: system is top-level. JSON mode is not native — we instruct in the
+    // prompt and strip any markdown code fences after.
+    const systemPrompt = params.jsonMode
+        ? `${params.systemMessage}\n\nIMPORTANT: respond with VALID JSON only. No markdown fences, no prose before or after the JSON object.`
+        : params.systemMessage
+
+    const response = await anthropicClient().messages.create({
+        model: params.model,
+        max_tokens: 4096,
+        system: systemPrompt,
+        temperature: params.temperature ?? 0.3,
+        messages: [{ role: 'user', content: params.userContent }],
+    })
+
+    let text = ''
+    for (const block of response.content) {
+        if (block.type === 'text') {
+            text += block.text
         }
     }
-    return completion
+    // Defensive: strip ```json ... ``` if model wrapped JSON in fences anyway.
+    if (params.jsonMode) {
+        text = text.trim()
+        if (text.startsWith('```')) {
+            text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
+        }
+    }
+    return {
+        text,
+        promptTokens: response.usage.input_tokens,
+        completionTokens: response.usage.output_tokens,
+        model: params.model,
+    }
 }
 
 export async function transcribeAudio(audio: ArrayBuffer | Uint8Array, fileName: string): Promise<string> {
@@ -68,7 +169,7 @@ export async function transcribeAudio(audio: ArrayBuffer | Uint8Array, fileName:
     const file = await toFile(bytes, fileName, {
         type: guessContentType(fileName),
     })
-    const result = await client().audio.transcriptions.create({
+    const result = await openaiClient().audio.transcriptions.create({
         file,
         model: env.OPENAI_TRANSCRIBE_MODEL,
     })
@@ -121,20 +222,17 @@ Priority rules (be CONSERVATIVE — sprint planning happens separately):
 Return JSON only. No prose, no markdown fences.`
 
 export async function analyze(transcript: string): Promise<AIAnalysis> {
-    const completion = await chatCompletion(
+    const result = await chatCompletion(
         {
-            model: env.OPENAI_CHAT_MODEL,
-            response_format: { type: 'json_object' },
+            systemMessage: SYSTEM_PROMPT,
+            userContent: transcript,
+            jsonMode: true,
             temperature: 0.3,
-            messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: transcript },
-            ],
         },
         'analyze',
     )
 
-    const raw = completion.choices[0]?.message?.content ?? '{}'
+    const raw = result.text || '{}'
     let parsed: unknown
     try {
         parsed = JSON.parse(raw)
@@ -279,15 +377,9 @@ export async function generateDailyPlan(
         tags: e.tags,
     }))
 
-    const completion = await chatCompletion(
+    const result = await chatCompletion(
         {
-            model: env.OPENAI_CHAT_MODEL,
-            response_format: { type: 'json_object' },
-            temperature: 0.3,
-            messages: [
-                {
-                    role: 'system',
-                    content: `You are a personal planning assistant. Given a pool of the user's tasks and their north stars, pick 3-5 tasks for the SPECIFIC day below. Balance categories — don't pick only work, or only content. Prefer tasks that move north stars (3d, content, work-promotion, money). Avoid picking energy="high" for more than 1-2 items.
+            systemMessage: `You are a personal planning assistant. Given a pool of the user's tasks and their north stars, pick 3-5 tasks for the SPECIFIC day below. Balance categories — don't pick only work, or only content. Prefer tasks that move north stars (3d, content, work-promotion, money). Avoid picking energy="high" for more than 1-2 items.
 
 CRITICAL — sequential subtasks: when multiple candidates share the same parent_title AND have numeric/alphabetic ordering in their titles (e.g. "Урок 20 — ...", "Урок 21 — ...", "Глава 4 — ...", "Chapter A.2 — ..."), ALWAYS pick the lowest-numbered open one first. Never skip ahead. Courses, books, tutorials must be followed in order — the user can't do "Урок 22" before completing "Урок 20".
 
@@ -305,17 +397,14 @@ Return STRICT JSON:
 }
 
 Return JSON only. No prose, no fences.`,
-                },
-                {
-                    role: 'user',
-                    content: JSON.stringify(compact, null, 2),
-                },
-            ],
+            userContent: JSON.stringify(compact, null, 2),
+            jsonMode: true,
+            temperature: 0.3,
         },
         'daily_plan',
     )
 
-    const raw = completion.choices[0]?.message?.content ?? '{}'
+    const raw = result.text || '{}'
     let parsed: unknown
     try {
         parsed = JSON.parse(raw)
@@ -383,15 +472,9 @@ export async function generateWeeklyPlan(
         tags: e.tags,
     }))
 
-    const completion = await chatCompletion(
+    const result = await chatCompletion(
         {
-            model: env.OPENAI_CHAT_MODEL,
-            response_format: { type: 'json_object' },
-            temperature: 0.3,
-            messages: [
-                {
-                    role: 'system',
-                    content: `You help the user plan a WEEKLY SPRINT (Mon-Sun). From the backlog pool below, pick a SCALED number of tasks to commit to for the remaining days in the sprint. Balance categories — don't pick only work, or only content. Strongly prefer tasks that move the career axis (work, 3d) and the primary content channel (YouTube). Account for the time budget below.
+            systemMessage: `You help the user plan a WEEKLY SPRINT (Mon-Sun). From the backlog pool below, pick a SCALED number of tasks to commit to for the remaining days in the sprint. Balance categories — don't pick only work, or only content. Strongly prefer tasks that move the career axis (work, 3d) and the primary content channel (YouTube). Account for the time budget below.
 
 CRITICAL — sequential subtasks: when multiple candidates share the same parent_title AND have numeric/alphabetic ordering in their titles (e.g. "Урок 20", "Глава 4", "Chapter A.2"), pick them in order — start from the lowest-numbered open one. Don't include "Урок 25" if "Урок 22" is still open. Courses and books are sequential.
 
@@ -416,17 +499,14 @@ Return STRICT JSON:
 }
 
 Return JSON only. No prose, no fences.`,
-                },
-                {
-                    role: 'user',
-                    content: JSON.stringify(compact, null, 2),
-                },
-            ],
+            userContent: JSON.stringify(compact, null, 2),
+            jsonMode: true,
+            temperature: 0.3,
         },
         'weekly_plan',
     )
 
-    const raw = completion.choices[0]?.message?.content ?? '{}'
+    const raw = result.text || '{}'
     let parsed: unknown
     try {
         parsed = JSON.parse(raw)
@@ -453,14 +533,9 @@ export async function generateMotivation(
     profile?: string,
     resumes?: Resume[],
 ): Promise<string> {
-    const completion = await chatCompletion(
+    const result = await chatCompletion(
         {
-            model: env.OPENAI_CHAT_MODEL,
-            temperature: 0.6,
-            messages: [
-                {
-                    role: 'system',
-                    content: `You write motivational reasoning for one specific long-term task. Goal: in 3-5 sentences IN RUSSIAN, explain WHY this task matters — connect to north stars, name the concrete reward on a realistic timeline, and end with what's lost by dropping it.
+            systemMessage: `You write motivational reasoning for one specific long-term task. Goal: in 3-5 sentences IN RUSSIAN, explain WHY this task matters — connect to north stars, name the concrete reward on a realistic timeline, and end with what's lost by dropping it.
 
 Tone rules:
 - Direct and slightly emotional. NO flattery ("ты молодец", "у тебя получится", "ты сможешь").
@@ -472,32 +547,27 @@ Tone rules:
 ${buildContext(profile, resumes)}
 
 Return plain text. No JSON, no markdown headers, no quotes — just the motivation paragraph.`,
-                },
-                {
-                    role: 'user',
-                    content: JSON.stringify({
-                        title: entry.title,
-                        summary: entry.summary,
-                        transcript: entry.transcript.slice(0, 1500),
-                        next_action: entry.next_action,
-                        category: entry.category,
-                        tags: entry.tags,
-                        extra_context: entry.extra_context,
-                        parent: parent
-                            ? {
-                                  title: parent.title,
-                                  motivation: parent.motivation,
-                                  extra_context: parent.extra_context,
-                              }
-                            : null,
-                    }),
-                },
-            ],
+            userContent: JSON.stringify({
+                title: entry.title,
+                summary: entry.summary,
+                transcript: entry.transcript.slice(0, 1500),
+                next_action: entry.next_action,
+                category: entry.category,
+                tags: entry.tags,
+                extra_context: entry.extra_context,
+                parent: parent
+                    ? {
+                          title: parent.title,
+                          motivation: parent.motivation,
+                          extra_context: parent.extra_context,
+                      }
+                    : null,
+            }),
+            temperature: 0.6,
         },
         'motivation',
     )
-    const raw = completion.choices[0]?.message?.content ?? ''
-    return raw.trim()
+    return result.text.trim()
 }
 
 export interface SubtaskSuggestion {
@@ -510,15 +580,9 @@ export type SubtaskResult =
     | { kind: 'needs_context'; question: string }
 
 export async function suggestSubtasks(entry: Entry, profile?: string, resumes?: Resume[]): Promise<SubtaskResult> {
-    const completion = await chatCompletion(
+    const result = await chatCompletion(
         {
-            model: env.OPENAI_CHAT_MODEL,
-            response_format: { type: 'json_object' },
-            temperature: 0.4,
-            messages: [
-                {
-                    role: 'system',
-                    content: `You help break down ONE large task. CRITICAL RULE: do not hallucinate structure you don't actually know.
+            systemMessage: `You help break down ONE large task. CRITICAL RULE: do not hallucinate structure you don't actually know.
 
 The user may provide source material in the "extra_context" field — course curriculum (ToC), brief, design spec, links, etc. Use that as ground truth.
 
@@ -546,24 +610,21 @@ Each subtask (when you DO return them) should:
 ${buildContext(profile, resumes)}
 
 Return JSON only. No prose, no fences.`,
-                },
-                {
-                    role: 'user',
-                    content: JSON.stringify({
-                        title: entry.title,
-                        summary: entry.summary,
-                        transcript: entry.transcript.slice(0, 2000),
-                        next_action: entry.next_action,
-                        category: entry.category,
-                        tags: entry.tags,
-                        extra_context: entry.extra_context,
-                    }),
-                },
-            ],
+            userContent: JSON.stringify({
+                title: entry.title,
+                summary: entry.summary,
+                transcript: entry.transcript.slice(0, 2000),
+                next_action: entry.next_action,
+                category: entry.category,
+                tags: entry.tags,
+                extra_context: entry.extra_context,
+            }),
+            jsonMode: true,
+            temperature: 0.4,
         },
         'subtasks',
     )
-    const raw = completion.choices[0]?.message?.content ?? '{}'
+    const raw = result.text || '{}'
     let parsed: unknown
     try {
         parsed = JSON.parse(raw)
@@ -607,14 +668,9 @@ export async function weeklyReview(entries: Entry[]): Promise<string> {
         tags: e.tags,
     }))
 
-    const completion = await chatCompletion(
+    const result = await chatCompletion(
         {
-            model: env.OPENAI_CHAT_MODEL,
-            temperature: 0.5,
-            messages: [
-                {
-                    role: 'system',
-                    content: `You are a concise weekly coach. Given a list of the user's entries from the last 7 days, produce a short Russian-language review with these sections (use plain text, no markdown headings beyond bold):
+            systemMessage: `You are a concise weekly coach. Given a list of the user's entries from the last 7 days, produce a short Russian-language review with these sections (use plain text, no markdown headings beyond bold):
 
 *Главные темы недели* — 3-5 bullets
 *Незавершённые важные идеи* — bullets, mention category
@@ -622,15 +678,75 @@ export async function weeklyReview(entries: Entry[]): Promise<string> {
 *Топ-3 next actions* — numbered list, each item is a concrete action
 
 Keep it under ~250 words.`,
-                },
-                {
-                    role: 'user',
-                    content: JSON.stringify(compact, null, 2),
-                },
-            ],
+            userContent: JSON.stringify(compact, null, 2),
+            temperature: 0.5,
         },
         'weekly_review',
     )
 
-    return completion.choices[0]?.message?.content?.trim() ?? 'Could not generate review.'
+    return result.text.trim() || 'Could not generate review.'
+}
+
+export interface StrategyResult {
+    body: string
+    model: string
+}
+
+export async function generateStrategy(context: StrategyContext): Promise<StrategyResult> {
+    const result = await chatCompletion(
+        {
+            systemMessage: `You are a senior career & life strategist consulting one specific person. Your job is to deliver an HONEST, GROUNDED 30-day strategic read.
+
+You are NOT an enthusiastic coach. You are NOT a planner that lists tasks. You are a strategist who:
+- Calls out open loops the user is carrying (incomplete commitments, abandoned threads — the "backpack" feeling).
+- Identifies the ONE thing to focus on next 30 days. Not three things. ONE. Justify why.
+- Names what to ARCHIVE (not "later" — archive). Be ruthless. Reducing scope is the gift.
+- Suggests a realistic time-of-day strategy based on the user's actual schedule constraints.
+- Lists 1-2 micro-wins to close THIS week (small, shippable — defeat the backpack).
+- Names ONE honest risk that could derail the plan.
+
+${NORTH_STARS}
+
+${buildContext(
+    context.profile_about_me,
+    context.resumes.map((r) => ({ id: '', label: r.label, content_text: r.content_text, created_at: '' })),
+)}
+
+Tone:
+- Direct, slightly stern. No flattery, no cheerleader language.
+- Treat the user like a peer who asked for honest counsel.
+- Reference SPECIFIC facts from the user's recent entries / profile / resumes. Don't write generic advice.
+- Write in Russian.
+
+Output: plain text with Markdown headings (## level) for these sections, exactly in this order:
+
+## Где ты сейчас
+2-3 sentences summarizing the user's actual state — what's moving, what's stuck. Cite concrete numbers from the context (entries captured, done, sprint state).
+
+## Открытые петли (рюкзак)
+2-3 bullets — specific abandoned/lingering commitments. Reference concrete entries by what they are about. Be honest.
+
+## ОДИН фокус на 30 дней
+A heading-level pick. Then 2-3 sentences justifying WHY this and not the alternatives. Reference north stars + user's real situation.
+
+## Что в архив СЕЙЧАС
+A short bulleted list of things to actively kill from the backlog. 2-4 items. Brief reason each.
+
+## Окно времени
+1-2 sentences proposing realistic time-of-day windows given the user's described constraints (work hours, family, energy).
+
+## 1-2 микро-победы на эту неделю
+Numbered list. Concrete, shippable in 30-90 min each. Closes loops in the backpack.
+
+## Главный риск
+1 sentence — what's most likely to derail the plan, and how to neutralize it.
+
+Return ONLY the markdown — no preamble, no quotes around it.`,
+            userContent: JSON.stringify(context, null, 2),
+            temperature: 0.7,
+        },
+        'strategy',
+    )
+
+    return { body: result.text.trim(), model: result.model }
 }

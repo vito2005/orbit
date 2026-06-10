@@ -102,3 +102,33 @@ export interface AIUsageSummary {
     allTime: number
     byFunction: Record<string, { calls: number; cost: number }>
 }
+
+export interface StrategyReport {
+    id: string
+    model: string
+    body: string
+    created_at: string
+}
+
+export interface StrategyContext {
+    profile_about_me: string
+    resumes: Array<{ label: string; content_text: string }>
+    sprint_label: string
+    sprint_days_left: number
+    counts: {
+        backlog: number
+        this_week: number
+        scheduled_today: number
+        done_last_7_days: number
+        captured_last_7_days: number
+    }
+    recent_entries: Array<{
+        title: string
+        category: string
+        priority: string
+        created_at: string
+        done_at: string | null
+        scheduled_for: string | null
+        parent_title: string | null
+    }>
+}

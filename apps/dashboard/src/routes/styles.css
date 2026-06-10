@@ -911,6 +911,60 @@ a:hover {
     margin-bottom: 0;
 }
 
+.strategy-card {
+    padding: 18px 22px;
+    margin-bottom: 14px;
+}
+.strategy-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+.strategy-head .muted {
+    color: var(--muted);
+    font-size: 12px;
+}
+.strategy-head form {
+    margin: 0;
+}
+.strategy-body h2 {
+    font-size: 17px;
+    margin: 18px 0 8px;
+    color: var(--accent);
+}
+.strategy-body h3 {
+    font-size: 15px;
+    margin: 16px 0 8px;
+    color: var(--accent);
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.strategy-body p {
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.65;
+    margin: 0 0 8px;
+}
+.strategy-body strong {
+    color: var(--text);
+}
+.strategy-body ul,
+.strategy-body ol {
+    margin: 4px 0 12px;
+    padding-left: 22px;
+}
+.strategy-body li {
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.65;
+    margin-bottom: 4px;
+}
+
 .usage-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

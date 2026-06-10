@@ -27,6 +27,18 @@ export const env = {
     get OPENAI_CHAT_MODEL() {
         return optional('OPENAI_CHAT_MODEL', 'gpt-4o-mini')
     },
+    // Optional: when set + OPENAI_CHAT_MODEL starts with "claude-", chat
+    // completions go direct to Anthropic API. Whisper transcription always
+    // uses OPENAI_API_KEY regardless.
+    get ANTHROPIC_API_KEY() {
+        return optional('ANTHROPIC_API_KEY', '')
+    },
+    // Optional: when set + OPENAI_CHAT_MODEL starts with "claude-", picks a
+    // specific Anthropic model. Otherwise OPENAI_CHAT_MODEL is used as-is.
+    // Example: claude-sonnet-4-6, claude-opus-4-7, claude-haiku-4-5.
+    get ANTHROPIC_CHAT_MODEL() {
+        return optional('ANTHROPIC_CHAT_MODEL', '')
+    },
     get SUPABASE_URL() {
         return required('SUPABASE_URL')
     },

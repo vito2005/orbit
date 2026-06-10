@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import { env } from './env'
-import type { AIUsageSummary, DailyPlan, Entry, NewEntry, Resume, UserProfile } from './types'
+import type { AIUsageSummary, DailyPlan, Entry, NewEntry, Resume, StrategyReport, UserProfile } from './types'
 
 let cached: SupabaseClient | null = null
 
@@ -512,4 +512,34 @@ export async function listRecent(limit = 5): Promise<Entry[]> {
         .limit(limit)
     if (error) throw new Error(`DB list recent failed: ${error.message}`)
     return (data ?? []) as Entry[]
+}
+
+export async function saveStrategyReport(args: { model: string; body: string }): Promise<StrategyReport> {
+    const supabase = getSupabase()
+    const { data, error } = await supabase.from('strategy_reports').insert(args).select().single()
+    if (error) {
+        throw new Error(`DB strategy save failed: ${error.message}`)
+    }
+    return data as StrategyReport
+}
+
+export async function listStrategyReports(limit = 10): Promise<StrategyReport[]> {
+    const supabase = getSupabase()
+    const { data, error } = await supabase
+        .from('strategy_reports')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit)
+    if (error) {
+        throw new Error(`DB list strategy failed: ${error.message}`)
+    }
+    return (data ?? []) as StrategyReport[]
+}
+
+export async function deleteStrategyReport(id: string): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('strategy_reports').delete().eq('id', id)
+    if (error) {
+        throw new Error(`DB delete strategy failed: ${error.message}`)
+    }
 }
