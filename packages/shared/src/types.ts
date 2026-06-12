@@ -78,24 +78,6 @@ export interface Resume {
     created_at: string
 }
 
-export interface AIUsageRow {
-    id: string
-    model: string
-    function_name: string
-    prompt_tokens: number
-    completion_tokens: number
-    cost_usd: number
-    created_at: string
-}
-
-export interface AIUsageSummary {
-    today: number
-    week: number
-    month: number
-    allTime: number
-    byFunction: Record<string, { calls: number; cost: number }>
-}
-
 export interface StrategyReport {
     id: string
     model: string

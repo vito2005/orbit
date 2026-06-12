@@ -2,7 +2,6 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI, { toFile } from 'openai'
 
 import { env } from './env'
-import { recordAIUsage } from './supabase'
 import type { Resume, StrategyContext } from './types'
 import {
     type AIAnalysis,
@@ -31,30 +30,6 @@ function anthropicClient(): Anthropic {
     }
     anthropicCached = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
     return anthropicCached
-}
-
-// Prices in USD per 1M tokens.
-const MODEL_PRICES: Record<string, { input: number; output: number }> = {
-    // OpenAI
-    'gpt-4o': { input: 2.5, output: 10 },
-    'gpt-4o-2024-08-06': { input: 2.5, output: 10 },
-    'gpt-4o-2024-11-20': { input: 2.5, output: 10 },
-    'gpt-4o-mini': { input: 0.15, output: 0.6 },
-    'gpt-4o-mini-2024-07-18': { input: 0.15, output: 0.6 },
-    'gpt-4.1': { input: 2, output: 8 },
-    'gpt-4.1-mini': { input: 0.4, output: 1.6 },
-    'gpt-5': { input: 1.25, output: 10 },
-    // Anthropic (direct API pricing — without OpenRouter markup)
-    'claude-opus-4-7': { input: 15, output: 75 },
-    'claude-opus-4-8': { input: 15, output: 75 },
-    'claude-sonnet-4-6': { input: 3, output: 15 },
-    'claude-sonnet-4-7': { input: 3, output: 15 },
-    'claude-haiku-4-5': { input: 1, output: 5 },
-}
-
-function calculateCost(model: string, promptTokens: number, completionTokens: number): number {
-    const prices = MODEL_PRICES[model] ?? { input: 2.5, output: 10 }
-    return (promptTokens * prices.input + completionTokens * prices.output) / 1_000_000
 }
 
 function isAnthropicModel(model: string): boolean {
@@ -87,26 +62,9 @@ interface NormalizedChatParams {
     temperature?: number
 }
 
-async function chatCompletion(params: NormalizedChatParams, functionName: string): Promise<NormalizedChatResult> {
+async function chatCompletion(params: NormalizedChatParams, _functionName: string): Promise<NormalizedChatResult> {
     const model = params.model ?? resolveChatModel()
-    const result = isAnthropicModel(model)
-        ? await callAnthropic({ ...params, model })
-        : await callOpenAI({ ...params, model })
-
-    try {
-        await recordAIUsage({
-            model: result.model,
-            function_name: functionName,
-            prompt_tokens: result.promptTokens,
-            completion_tokens: result.completionTokens,
-            cost_usd: calculateCost(result.model, result.promptTokens, result.completionTokens),
-        })
-    } catch (err) {
-        // Don't fail the AI call if usage logging fails.
-        console.error('Failed to record AI usage', err)
-    }
-
-    return result
+    return isAnthropicModel(model) ? await callAnthropic({ ...params, model }) : await callOpenAI({ ...params, model })
 }
 
 async function callOpenAI(params: NormalizedChatParams & { model: string }): Promise<NormalizedChatResult> {

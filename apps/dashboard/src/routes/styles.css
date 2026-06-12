@@ -1040,52 +1040,6 @@ a:hover {
     margin-bottom: 4px;
 }
 
-.usage-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 10px;
-    margin-bottom: 14px;
-}
-.usage-cell {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-}
-.usage-label {
-    color: var(--muted);
-    font-size: 12px;
-    margin-bottom: 4px;
-}
-.usage-value {
-    color: var(--text);
-    font-size: 20px;
-    font-weight: 600;
-}
-.usage-breakdown {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-}
-.usage-breakdown th {
-    color: var(--muted);
-    text-align: left;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--border);
-}
-.usage-breakdown td {
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text);
-}
-.usage-breakdown tr:last-child td {
-    border-bottom: none;
-}
-
 .resume-edit-form textarea {
     width: 100%;
     background: var(--bg-elev);

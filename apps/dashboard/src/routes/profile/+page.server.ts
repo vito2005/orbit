@@ -1,12 +1,4 @@
-import {
-    addResume,
-    deleteResume,
-    getAIUsageSummary,
-    getProfile,
-    listResumes,
-    saveProfile,
-    updateResume,
-} from '@orbit/shared'
+import { addResume, deleteResume, getProfile, listResumes, saveProfile, updateResume } from '@orbit/shared'
 import { fail, redirect } from '@sveltejs/kit'
 
 import { extractPdfText } from '$lib/pdf'
@@ -14,8 +6,8 @@ import { extractPdfText } from '$lib/pdf'
 import type { Actions, PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async () => {
-    const [profile, resumes, usage] = await Promise.all([getProfile(), listResumes(), getAIUsageSummary()])
-    return { profile, resumes, usage }
+    const [profile, resumes] = await Promise.all([getProfile(), listResumes()])
+    return { profile, resumes }
 }
 
 export const actions: Actions = {
