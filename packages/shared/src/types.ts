@@ -47,23 +47,16 @@ export interface Entry {
     energy: Energy
     content_potential: number | null
     raw_ai_json: AIAnalysis
-    scheduled_for: string | null
     done_at: string | null
     parent_id: string | null
     motivation: string | null
     extra_context: string | null
 }
 
-export type NewEntry = Omit<Entry, 'id' | 'created_at' | 'scheduled_for' | 'done_at' | 'motivation' | 'extra_context'>
+export type NewEntry = Omit<Entry, 'id' | 'created_at' | 'done_at' | 'motivation' | 'extra_context'>
 
-export interface DailyPlan {
-    date: string
-    reasoning: string
-    entry_ids: string[]
-    explanations: Record<string, string>
-    created_at: string
-}
-
+// Mon-Sun calendar week — kept as context input for /strategy so the AI knows
+// where in the week the user is when reasoning about focus.
 export interface Sprint {
     start: string
     end: string
@@ -116,9 +109,10 @@ export interface StrategyContext {
     sprint_label: string
     sprint_days_left: number
     counts: {
-        backlog: number
+        now: number
         this_week: number
-        scheduled_today: number
+        backlog: number
+        stale_over_14_days: number
         done_last_7_days: number
         captured_last_7_days: number
     }
@@ -128,7 +122,6 @@ export interface StrategyContext {
         priority: string
         created_at: string
         done_at: string | null
-        scheduled_for: string | null
         parent_title: string | null
     }>
 }

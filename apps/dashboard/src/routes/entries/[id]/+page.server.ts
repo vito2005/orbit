@@ -10,7 +10,6 @@ import {
     listSubtasksOf,
     type NewEntry,
     PRIORITIES,
-    scheduleFor,
     setCategory,
     setExtraContext,
     setMotivation,
@@ -66,13 +65,6 @@ export const actions: Actions = {
             return fail(400, { error: 'invalid category' })
         }
         await setCategory(params.id as string, category)
-        throw redirect(303, safeRedirect(data, `/entries/${params.id}`))
-    },
-    scheduleFor: async ({ params, request }) => {
-        const data = await request.formData()
-        const raw = String(data.get('date') ?? '').trim()
-        const date = raw.length > 0 ? raw : null
-        await scheduleFor(params.id as string, date)
         throw redirect(303, safeRedirect(data, `/entries/${params.id}`))
     },
     suggestSplit: async ({ params }) => {

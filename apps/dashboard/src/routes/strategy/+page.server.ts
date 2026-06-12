@@ -7,7 +7,7 @@ import {
     getProfile,
     listEntries,
     listResumes,
-    listScheduledFor,
+    listStale,
     listStrategyReports,
     saveStrategyReport,
     type StrategyContext,
@@ -15,11 +15,6 @@ import {
 import { fail, redirect } from '@sveltejs/kit'
 
 import type { Actions, PageServerLoad } from './$types'
-
-function todayLocal(): string {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 export const load: PageServerLoad = async () => {
     const reports = await listStrategyReports(10)
@@ -29,12 +24,13 @@ export const load: PageServerLoad = async () => {
 export const actions: Actions = {
     generate: async () => {
         const sprint = currentSprint()
-        const [profile, resumes, backlogCount, weekCount, todayEntries, recent] = await Promise.all([
+        const [profile, resumes, nowCount, weekCount, backlogCount, stale, recent] = await Promise.all([
             getProfile(),
             listResumes(),
-            countOpenInPriority('later'),
+            countOpenInPriority('now'),
             countOpenInPriority('this_week'),
-            listScheduledFor(todayLocal()),
+            countOpenInPriority('later'),
+            listStale(14, 100),
             listEntries({ sinceDays: 14, limit: 60 }),
         ])
 
@@ -50,9 +46,10 @@ export const actions: Actions = {
             sprint_label: sprint.label,
             sprint_days_left: sprint.daysLeft,
             counts: {
-                backlog: backlogCount,
+                now: nowCount,
                 this_week: weekCount,
-                scheduled_today: todayEntries.length,
+                backlog: backlogCount,
+                stale_over_14_days: stale.length,
                 done_last_7_days: done7.length,
                 captured_last_7_days: last7.length,
             },
@@ -62,7 +59,6 @@ export const actions: Actions = {
                 priority: e.priority,
                 created_at: e.created_at,
                 done_at: e.done_at,
-                scheduled_for: e.scheduled_for,
                 parent_title: e.parent_id ? (parentTitles[e.parent_id] ?? null) : null,
             })),
         }

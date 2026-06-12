@@ -1,84 +1,104 @@
 <script lang="ts">
-    import { daysLeftWord } from '@orbit/shared'
-
+    import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { categoryEmoji, formatRelative } from '$lib/format'
 
     import type { PageData } from './$types'
 
     const { data }: { data: PageData } = $props()
-    const today = $derived(data.today)
+    const entries = $derived(data.entries)
+    const stale = $derived(data.stale)
     const recent = $derived(data.recent)
-    const sprint = $derived(data.sprint)
+    const parentTitles = $derived(data.parentTitles)
+    const subtaskCounts = $derived(data.subtaskCounts)
+    const backlogCount = $derived(data.backlogCount)
 </script>
 
-<p class="sprint-line hub-sprint">
-    Спринт {sprint.label} · <strong>{daysLeftWord(sprint.daysLeft)}</strong>
-</p>
-
-<section class="hub-section">
-    <div class="hub-section-head">
-        <h2><a href="/today">Сегодня</a></h2>
-        <span class="muted">
-            {today.open.length} открытых
-            {#if today.done.length > 0}· {today.done.length} сделано{/if}
-        </span>
-    </div>
-
-    {#if today.open.length === 0 && today.done.length === 0}
-        <p class="hub-empty">
-            План пуст. <a href="/today">Сгенерировать</a> или взять задачу из <a href="/week">недели</a>.
+<div class="today-head">
+    <div>
+        <h1>Что делать</h1>
+        <p class="muted" style="font-size: 13px; margin: 4px 0 0;">
+            Стек по приоритету. Сверху — самое важное. Закрыл → следующая.
         </p>
-    {:else}
-        <ul class="hub-list">
-            {#each today.open as entry (entry.id)}
-                <li class="hub-row">
-                    <span class="hub-dot">○</span>
-                    <a href="/entries/{entry.id}" class="hub-title">
+    </div>
+    <span class="muted" style="font-size: 12px;">
+        {entries.length} открытых · {backlogCount} в backlog
+    </span>
+</div>
+
+{#if entries.length === 0}
+    <div class="empty">
+        <p>Пусто. Скинь идею в бот.</p>
+    </div>
+{:else}
+    <ul class="now-stack">
+        {#each entries as entry (entry.id)}
+            <li class="now-card">
+                <form method="POST" action="?/done" class="done-form">
+                    <input type="hidden" name="id" value={entry.id} />
+                    <button type="submit" class="done-toggle" aria-label="Mark done">○</button>
+                </form>
+                <div class="now-body">
+                    {#if entry.parent_id && parentTitles[entry.parent_id]}
+                        <a href="/entries/{entry.parent_id}" class="parent-chip">↑ {parentTitles[entry.parent_id]}</a>
+                    {/if}
+                    <a href="/entries/{entry.id}" class="now-title">
                         {categoryEmoji(entry.category)}
                         {entry.title}
                     </a>
-                </li>
-            {/each}
-            {#each today.done as entry (entry.id)}
-                <li class="hub-row done">
-                    <span class="hub-dot done">✓</span>
-                    <a href="/entries/{entry.id}" class="hub-title done">
-                        {categoryEmoji(entry.category)}
-                        {entry.title}
-                    </a>
+                    {#if entry.next_action}
+                        <p class="next-action">{entry.next_action}</p>
+                    {/if}
+                    <div class="now-meta">
+                        <span class="badge {entry.priority}">{entry.priority.replace('_', ' ')}</span>
+                        {#if subtaskCounts[entry.id]}
+                            <a href="/entries/{entry.id}" class="subtask-chip"
+                                >↳ {subtaskCounts[entry.id].done}/{subtaskCounts[entry.id].total} подзадач</a
+                            >
+                        {/if}
+                    </div>
+                    <EntryEdit {entry} redirectTo="/" />
+                </div>
+            </li>
+        {/each}
+    </ul>
+{/if}
+
+{#if stale.length > 0}
+    <details class="stale-section">
+        <summary>🪦 Старые задачи ({stale.length})</summary>
+        <p class="muted" style="font-size: 12px; margin: 8px 0 12px;">
+            Висят больше 14 дней. Bullet-Journal-правило: если переносил 3 раза — удали без сожаления.
+        </p>
+        <ul class="now-stack">
+            {#each stale as entry (entry.id)}
+                <li class="now-card stale">
+                    <form method="POST" action="?/archive" class="done-form">
+                        <input type="hidden" name="id" value={entry.id} />
+                        <button type="submit" class="done-toggle stale-toggle" title="Archive" aria-label="Archive"
+                            >📦</button
+                        >
+                    </form>
+                    <div class="now-body">
+                        <a href="/entries/{entry.id}" class="now-title">
+                            {categoryEmoji(entry.category)}
+                            {entry.title}
+                        </a>
+                        <div class="now-meta">
+                            <span class="muted">висит {formatRelative(entry.created_at)}</span>
+                            <span class="badge {entry.priority}">{entry.priority.replace('_', ' ')}</span>
+                        </div>
+                    </div>
                 </li>
             {/each}
         </ul>
-    {/if}
-</section>
+    </details>
+{/if}
 
-<section class="hub-section">
-    <div class="hub-section-head">
-        <h2>Очереди</h2>
-    </div>
-    <div class="hub-queues">
-        <a href="/week" class="hub-queue">
-            <span class="hub-queue-label">На этой неделе</span>
-            <span class="hub-queue-count">{data.weekOpenCount}</span>
-        </a>
-        <a href="/inbox?priority=later" class="hub-queue">
-            <span class="hub-queue-label">Backlog</span>
-            <span class="hub-queue-count">{data.backlogCount}</span>
-        </a>
-        <a href="/inbox" class="hub-queue">
-            <span class="hub-queue-label">Все записи</span>
-            <span class="hub-queue-count">→</span>
-        </a>
-    </div>
-</section>
-
-<section class="hub-section">
-    <div class="hub-section-head">
-        <h2><a href="/inbox">Недавние капчуры</a></h2>
-    </div>
-    {#if recent.length === 0}
-        <p class="hub-empty">Пусто — скинь идею в бот.</p>
-    {:else}
+{#if recent.length > 0}
+    <section class="hub-section" style="margin-top: 32px;">
+        <div class="hub-section-head">
+            <h2><a href="/inbox">Недавние капчуры</a></h2>
+        </div>
         <ul class="hub-list">
             {#each recent as entry (entry.id)}
                 <li class="hub-row">
@@ -90,5 +110,5 @@
                 </li>
             {/each}
         </ul>
-    {/if}
-</section>
+    </section>
+{/if}

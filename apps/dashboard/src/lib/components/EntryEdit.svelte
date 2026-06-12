@@ -9,13 +9,6 @@
         const target = e.currentTarget as HTMLSelectElement
         target.form?.requestSubmit()
     }
-
-    function todayPlusDays(days: number): string {
-        // eslint-disable-next-line svelte/prefer-svelte-reactivity
-        const d = new Date()
-        d.setDate(d.getDate() + days)
-        return d.toISOString().slice(0, 10)
-    }
 </script>
 
 <div class="entry-edit">
@@ -41,28 +34,4 @@
             {/each}
         </select>
     </form>
-
-    {#if entry.scheduled_for}
-        <form method="POST" action="/entries/{entry.id}?/scheduleFor" class="entry-edit-form">
-            <input type="hidden" name="redirectTo" value={redirectTo} />
-            <input type="hidden" name="date" value={todayPlusDays(1)} />
-            <button type="submit" class="entry-edit-chip" title="Move to tomorrow">→ завтра</button>
-        </form>
-        <form method="POST" action="/entries/{entry.id}?/scheduleFor" class="entry-edit-form">
-            <input type="hidden" name="redirectTo" value={redirectTo} />
-            <input type="hidden" name="date" value="" />
-            <button type="submit" class="entry-edit-chip" title="Unschedule">снять</button>
-        </form>
-    {:else}
-        <form method="POST" action="/entries/{entry.id}?/scheduleFor" class="entry-edit-form">
-            <input type="hidden" name="redirectTo" value={redirectTo} />
-            <input type="hidden" name="date" value={todayPlusDays(0)} />
-            <button type="submit" class="entry-edit-chip" title="Plan for today">→ сегодня</button>
-        </form>
-        <form method="POST" action="/entries/{entry.id}?/scheduleFor" class="entry-edit-form">
-            <input type="hidden" name="redirectTo" value={redirectTo} />
-            <input type="hidden" name="date" value={todayPlusDays(1)} />
-            <button type="submit" class="entry-edit-chip" title="Plan for tomorrow">→ завтра</button>
-        </form>
-    {/if}
 </div>

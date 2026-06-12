@@ -1,20 +1,8 @@
-import {
-    CATEGORIES,
-    env,
-    generateDailyPlan,
-    getParentTitles,
-    getProfile,
-    listEntries,
-    listPlanCandidates,
-    listResumes,
-    listTodayPlan,
-    scheduleEntries,
-    weeklyReview,
-} from '@orbit/shared'
+import { CATEGORIES, env } from '@orbit/shared'
 import { Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 
-import { categoryLabel, formatList, formatSaved } from './format.ts'
+import { categoryLabel, formatSaved } from './format.ts'
 import { log } from './log.ts'
 import { processText, processVoice } from './process.ts'
 
@@ -39,9 +27,6 @@ export function createBot(): Telegraf {
                 "Send me a *voice message* or *text* and I'll transcribe, categorize and save it.",
                 '',
                 'Commands:',
-                '/today — план на сегодня',
-                '/plan — AI собирает план на сегодня',
-                '/week — AI обзор за 7 дней',
                 '/categories — список категорий',
             ].join('\n'),
             { parse_mode: 'Markdown' },
@@ -53,71 +38,6 @@ export function createBot(): Telegraf {
         await ctx.reply(`*Categories:*\n${lines.join('\n')}`, {
             parse_mode: 'Markdown',
         })
-    })
-
-    bot.command('today', async (ctx) => {
-        try {
-            const planned = await listTodayPlan()
-            const open = planned.filter((e) => !e.done_at)
-            const done = planned.filter((e) => e.done_at)
-
-            const parts: string[] = []
-            if (open.length > 0) {
-                parts.push(`*План на сегодня:*\n${formatList(open, '')}`)
-            }
-            if (done.length > 0) {
-                parts.push(`*Сделано:* ${done.length}`)
-            }
-            if (parts.length === 0) {
-                parts.push('Пусто. /plan чтобы AI собрал план из this_week.')
-            }
-            await ctx.reply(parts.join('\n\n'), { parse_mode: 'Markdown' })
-        } catch (err) {
-            log.error('today failed', err)
-            await ctx.reply("Failed to load today's entries.")
-        }
-    })
-
-    bot.command('plan', async (ctx) => {
-        try {
-            await ctx.sendChatAction('typing')
-            const [candidates, profile, resumes] = await Promise.all([
-                listPlanCandidates(),
-                getProfile(),
-                listResumes(),
-            ])
-            if (candidates.length === 0) {
-                await ctx.reply('Нет свободных задач в now / this_week. Скинь идею.')
-                return
-            }
-            const parentTitles = await getParentTitles(candidates)
-            const plan = await generateDailyPlan(candidates, undefined, profile.about_me, resumes, parentTitles)
-            if (plan.selected_ids.length === 0) {
-                await ctx.reply('AI не выбрал ни одной задачи.')
-                return
-            }
-            const today = new Date().toISOString().slice(0, 10)
-            await scheduleEntries(plan.selected_ids, today)
-            const picked = candidates.filter((c) => plan.selected_ids.includes(c.id))
-            const lines = ['*Запланировал на сегодня:*', formatList(picked, '')]
-            if (plan.reasoning) lines.push(`\n_${plan.reasoning}_`)
-            await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' })
-        } catch (err) {
-            log.error('plan failed', err)
-            await ctx.reply('Failed to generate plan.')
-        }
-    })
-
-    bot.command('week', async (ctx) => {
-        try {
-            await ctx.sendChatAction('typing')
-            const entries = await listEntries({ sinceDays: 7, limit: 200 })
-            const summary = await weeklyReview(entries)
-            await ctx.reply(summary, { parse_mode: 'Markdown' })
-        } catch (err) {
-            log.error('week failed', err)
-            await ctx.reply('Failed to build weekly review.')
-        }
     })
 
     bot.on(message('voice'), async (ctx) => {

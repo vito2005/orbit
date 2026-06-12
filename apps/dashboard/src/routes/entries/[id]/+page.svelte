@@ -156,9 +156,6 @@
                     <li class="hub-row" class:done={st.done_at !== null}>
                         <span class="hub-dot" class:done={st.done_at !== null}>{st.done_at !== null ? '✓' : '○'}</span>
                         <a href="/entries/{st.id}" class="hub-title" class:done={st.done_at !== null}>{st.title}</a>
-                        {#if st.scheduled_for}
-                            <span class="hub-meta-time">{st.scheduled_for}</span>
-                        {/if}
                     </li>
                 {/each}
             </ul>

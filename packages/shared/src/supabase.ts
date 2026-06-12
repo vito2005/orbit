@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import { env } from './env'
-import type { AIUsageSummary, DailyPlan, Entry, NewEntry, Resume, StrategyReport, UserProfile } from './types'
+import type { AIUsageSummary, Entry, NewEntry, Resume, StrategyReport, UserProfile } from './types'
 
 let cached: SupabaseClient | null = null
 
@@ -105,77 +105,73 @@ export async function deleteEntry(id: string): Promise<void> {
     if (error) throw new Error(`DB delete failed: ${error.message}`)
 }
 
-function todayLocalDate(): string {
-    const d = new Date()
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${day}`
-}
+const PRIORITY_RANK: Record<string, number> = { now: 0, this_week: 1, later: 2, archive: 3 }
 
-export async function listScheduledFor(date: string): Promise<Entry[]> {
+// The single source of truth for the pull-based stack. Orders by priority
+// (now > this_week > later) then by oldest first so aging tasks bubble up
+// — Bullet-Journal-style. Done and archived are excluded.
+//
+// Parents that have ANY open subtask are also filtered out: AI / user should
+// work on the subtask first, not the abstract parent.
+export async function listNow(limit = 100): Promise<Entry[]> {
     const supabase = getSupabase()
     const { data, error } = await supabase
         .from('entries')
         .select('*')
-        .eq('scheduled_for', date)
-        .order('done_at', { ascending: true, nullsFirst: true })
-        .order('priority', { ascending: true })
-    if (error) throw new Error(`DB scheduled for ${date} failed: ${error.message}`)
-    return (data ?? []) as Entry[]
-}
-
-export async function listTodayPlan(): Promise<Entry[]> {
-    return listScheduledFor(todayLocalDate())
-}
-
-export async function listPlanCandidates(): Promise<Entry[]> {
-    const supabase = getSupabase()
-    const { data, error } = await supabase
-        .from('entries')
-        .select('*')
-        .in('priority', ['now', 'this_week'])
+        .in('priority', ['now', 'this_week', 'later'])
         .is('done_at', null)
-        .is('scheduled_for', null)
-        .order('priority', { ascending: true })
-        .order('created_at', { ascending: false })
-        .limit(50)
+        .order('created_at', { ascending: true })
+        .limit(limit * 2)
     if (error) {
-        throw new Error(`DB plan candidates failed: ${error.message}`)
+        throw new Error(`DB list now failed: ${error.message}`)
     }
-    const candidates = (data ?? []) as Entry[]
-    if (candidates.length === 0) {
-        return candidates
+    const entries = (data ?? []) as Entry[]
+
+    // Filter out parents with open children
+    let result = entries
+    if (entries.length > 0) {
+        const { data: openChildren } = await supabase
+            .from('entries')
+            .select('parent_id')
+            .in(
+                'parent_id',
+                entries.map((e) => e.id),
+            )
+            .is('done_at', null)
+        const blocked = new Set(
+            (openChildren ?? [])
+                .map((r) => (r as { parent_id: string | null }).parent_id)
+                .filter((p): p is string => typeof p === 'string'),
+        )
+        result = entries.filter((c) => !blocked.has(c.id))
     }
 
-    const parentIds = candidates.map((c) => c.id)
-    const { data: openChildren, error: subErr } = await supabase
-        .from('entries')
-        .select('parent_id')
-        .in('parent_id', parentIds)
-        .is('done_at', null)
-    if (subErr) {
-        throw new Error(`DB subtask check failed: ${subErr.message}`)
-    }
-    const blocked = new Set(
-        (openChildren ?? [])
-            .map((r) => (r as { parent_id: string | null }).parent_id)
-            .filter((p): p is string => typeof p === 'string'),
-    )
-    return candidates.filter((c) => !blocked.has(c.id))
+    return result
+        .sort((a, b) => {
+            const r = (PRIORITY_RANK[a.priority] ?? 99) - (PRIORITY_RANK[b.priority] ?? 99)
+            if (r !== 0) return r
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        })
+        .slice(0, limit)
 }
 
-export async function listWeek(): Promise<Entry[]> {
+// Entries that have been open for more than N days. The /now stale section
+// surfaces these so the user can archive aggressively (Bullet Journal migration
+// rule: if you keep moving it, kill it).
+export async function listStale(olderThanDays = 14, limit = 50): Promise<Entry[]> {
     const supabase = getSupabase()
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString()
     const { data, error } = await supabase
         .from('entries')
         .select('*')
-        .in('priority', ['now', 'this_week'])
+        .in('priority', ['now', 'this_week', 'later'])
         .is('done_at', null)
-        .order('priority', { ascending: true })
-        .order('created_at', { ascending: false })
-        .limit(200)
-    if (error) throw new Error(`DB week failed: ${error.message}`)
+        .lt('created_at', cutoff)
+        .order('created_at', { ascending: true })
+        .limit(limit)
+    if (error) {
+        throw new Error(`DB list stale failed: ${error.message}`)
+    }
     return (data ?? []) as Entry[]
 }
 
@@ -186,13 +182,6 @@ export async function markDone(id: string, done: boolean): Promise<void> {
         .update({ done_at: done ? new Date().toISOString() : null })
         .eq('id', id)
     if (error) throw new Error(`DB mark done failed: ${error.message}`)
-}
-
-export async function scheduleEntries(ids: string[], date: string | null): Promise<void> {
-    if (ids.length === 0) return
-    const supabase = getSupabase()
-    const { error } = await supabase.from('entries').update({ scheduled_for: date }).in('id', ids)
-    if (error) throw new Error(`DB schedule failed: ${error.message}`)
 }
 
 export async function setPriority(id: string, priority: string): Promise<void> {
@@ -257,65 +246,6 @@ export async function countSubtasksByParent(parentIds: string[]): Promise<Map<st
         result.set(r.parent_id, cur)
     }
     return result
-}
-
-export async function listSprintCandidates(): Promise<Entry[]> {
-    const supabase = getSupabase()
-    const { data, error } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('priority', 'later')
-        .is('done_at', null)
-        .is('scheduled_for', null)
-        .order('created_at', { ascending: false })
-        .limit(80)
-    if (error) {
-        throw new Error(`DB sprint candidates failed: ${error.message}`)
-    }
-    const candidates = (data ?? []) as Entry[]
-    if (candidates.length === 0) {
-        return candidates
-    }
-
-    const parentIds = candidates.map((c) => c.id)
-    const { data: openChildren, error: subErr } = await supabase
-        .from('entries')
-        .select('parent_id')
-        .in('parent_id', parentIds)
-        .is('done_at', null)
-    if (subErr) {
-        throw new Error(`DB subtask check failed: ${subErr.message}`)
-    }
-    const blocked = new Set(
-        (openChildren ?? [])
-            .map((r) => (r as { parent_id: string | null }).parent_id)
-            .filter((p): p is string => typeof p === 'string'),
-    )
-    return candidates.filter((c) => !blocked.has(c.id))
-}
-
-export async function promoteToWeek(ids: string[]): Promise<void> {
-    if (ids.length === 0) {
-        return
-    }
-    const supabase = getSupabase()
-    const { error } = await supabase.from('entries').update({ priority: 'this_week' }).in('id', ids)
-    if (error) {
-        throw new Error(`DB promote to week failed: ${error.message}`)
-    }
-}
-
-export async function bulkDemoteUnscheduledWeek(): Promise<number> {
-    const supabase = getSupabase()
-    const { data, error } = await supabase
-        .from('entries')
-        .update({ priority: 'later' })
-        .eq('priority', 'this_week')
-        .is('scheduled_for', null)
-        .is('done_at', null)
-        .select('id')
-    if (error) throw new Error(`DB bulk demote failed: ${error.message}`)
-    return (data ?? []).length
 }
 
 export async function setCategory(id: string, category: string): Promise<void> {
@@ -462,10 +392,6 @@ export async function updateResume(id: string, args: { label?: string; contentTe
     }
 }
 
-export async function scheduleFor(id: string, date: string | null): Promise<void> {
-    await scheduleEntries([id], date)
-}
-
 export async function countOpenInPriority(priority: string): Promise<number> {
     const supabase = getSupabase()
     const { count, error } = await supabase
@@ -475,31 +401,6 @@ export async function countOpenInPriority(priority: string): Promise<number> {
         .is('done_at', null)
     if (error) throw new Error(`DB count failed: ${error.message}`)
     return count ?? 0
-}
-
-export async function getDailyPlan(date: string): Promise<DailyPlan | null> {
-    const supabase = getSupabase()
-    const { data, error } = await supabase.from('daily_plans').select('*').eq('date', date).maybeSingle()
-    if (error) {
-        throw new Error(`DB daily plan get failed: ${error.message}`)
-    }
-    return (data as DailyPlan | null) ?? null
-}
-
-export async function saveDailyPlan(plan: Omit<DailyPlan, 'created_at'>): Promise<void> {
-    const supabase = getSupabase()
-    const { error } = await supabase.from('daily_plans').upsert(
-        {
-            date: plan.date,
-            reasoning: plan.reasoning,
-            entry_ids: plan.entry_ids,
-            explanations: plan.explanations,
-        },
-        { onConflict: 'date' },
-    )
-    if (error) {
-        throw new Error(`DB daily plan save failed: ${error.message}`)
-    }
 }
 
 export async function listRecent(limit = 5): Promise<Entry[]> {
