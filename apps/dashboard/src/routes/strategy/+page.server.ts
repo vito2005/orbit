@@ -68,7 +68,12 @@ export const actions: Actions = {
             if (!strat.body) {
                 return fail(500, { error: 'AI вернул пустой ответ.' })
             }
-            await saveStrategyReport({ model: strat.model, body: strat.body })
+            await saveStrategyReport({
+                model: strat.model,
+                body: strat.body,
+                system_prompt: strat.system_prompt,
+                user_content: strat.user_content,
+            })
         } catch (err) {
             return fail(500, { error: `AI ошибка: ${(err as Error).message}` })
         }

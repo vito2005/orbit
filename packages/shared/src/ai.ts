@@ -429,12 +429,12 @@ Return JSON only. No prose, no fences.`,
 export interface StrategyResult {
     body: string
     model: string
+    system_prompt: string
+    user_content: string
 }
 
 export async function generateStrategy(context: StrategyContext): Promise<StrategyResult> {
-    const result = await chatCompletion(
-        {
-            systemMessage: `You are a senior career & life strategist consulting one specific person. Your job is to deliver an HONEST, GROUNDED 30-day strategic read.
+    const systemMessage = `You are a senior career & life strategist consulting one specific person. Your job is to deliver an HONEST, GROUNDED 30-day strategic read.
 
 You are NOT an enthusiastic coach. You are NOT a planner that lists tasks. You are a strategist who:
 - Calls out open loops the user is carrying (incomplete commitments, abandoned threads — the "backpack" feeling).
@@ -480,12 +480,18 @@ Numbered list. Concrete, shippable in 30-90 min each. Closes loops in the backpa
 ## Главный риск
 1 sentence — what's most likely to derail the plan, and how to neutralize it.
 
-Return ONLY the markdown — no preamble, no quotes around it.`,
-            userContent: JSON.stringify(context, null, 2),
+Return ONLY the markdown — no preamble, no quotes around it.`
+
+    const userContent = JSON.stringify(context, null, 2)
+
+    const result = await chatCompletion(
+        {
+            systemMessage,
+            userContent,
             temperature: 0.7,
         },
         'strategy',
     )
 
-    return { body: result.text.trim(), model: result.model }
+    return { body: result.text.trim(), model: result.model, system_prompt: systemMessage, user_content: userContent }
 }

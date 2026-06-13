@@ -1040,6 +1040,56 @@ a:hover {
     margin-bottom: 4px;
 }
 
+.strategy-input {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+.strategy-input summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    list-style: none;
+}
+.strategy-input summary::-webkit-details-marker {
+    display: none;
+}
+.strategy-input summary span::before {
+    content: '▸ ';
+}
+.strategy-input[open] summary span::before {
+    content: '▾ ';
+}
+.strategy-input-hint {
+    font-size: 12px;
+    margin: 10px 0 0;
+}
+.strategy-input h4 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 14px 0 6px;
+}
+.strategy-input-pre {
+    margin: 0;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 320px;
+    overflow-y: auto;
+    color: var(--text);
+}
+
 .resume-edit-form textarea {
     width: 100%;
     background: var(--bg-elev);

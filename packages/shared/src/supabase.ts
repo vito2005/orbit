@@ -365,7 +365,12 @@ export async function listRecent(limit = 5): Promise<Entry[]> {
     return (data ?? []) as Entry[]
 }
 
-export async function saveStrategyReport(args: { model: string; body: string }): Promise<StrategyReport> {
+export async function saveStrategyReport(args: {
+    model: string
+    body: string
+    system_prompt: string
+    user_content: string
+}): Promise<StrategyReport> {
     const supabase = getSupabase()
     const { data, error } = await supabase.from('strategy_reports').insert(args).select().single()
     if (error) {

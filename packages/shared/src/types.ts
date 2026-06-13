@@ -83,6 +83,8 @@ export interface StrategyReport {
     model: string
     body: string
     created_at: string
+    system_prompt: string
+    user_content: string
 }
 
 export interface StrategyContext {

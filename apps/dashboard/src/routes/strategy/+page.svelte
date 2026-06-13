@@ -7,9 +7,31 @@
     const reports = $derived(data.reports)
     const justGenerated = $derived(page.url.searchParams.get('generated') === '1')
 
+    let copiedId = $state<string | null>(null)
+
     function formatDate(iso: string): string {
         const d = new Date(iso)
         return d.toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
+    }
+
+    // The exact input the model received — labeled so it can be pasted into
+    // another model (Opus, GPT-5, …) for an honest side-by-side comparison.
+    function buildPromptText(systemPrompt: string, userContent: string): string {
+        return `=== SYSTEM PROMPT ===\n${systemPrompt}\n\n=== USER CONTENT ===\n${userContent}`
+    }
+
+    async function copyPrompt(id: string, systemPrompt: string, userContent: string): Promise<void> {
+        try {
+            await navigator.clipboard.writeText(buildPromptText(systemPrompt, userContent))
+            copiedId = id
+            setTimeout(() => {
+                if (copiedId === id) {
+                    copiedId = null
+                }
+            }, 2000)
+        } catch {
+            copiedId = null
+        }
     }
 
     // Minimal markdown rendering — `## headings`, **bold**, * bullets, numbered lists.
@@ -116,6 +138,31 @@
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 {@html renderMarkdown(r.body)}
             </div>
+            {#if r.system_prompt || r.user_content}
+                <details class="strategy-input">
+                    <summary>
+                        <span>Что видел AI</span>
+                        <button
+                            type="button"
+                            class="link-button"
+                            onclick={(ev) => {
+                                ev.preventDefault()
+                                copyPrompt(r.id, r.system_prompt, r.user_content)
+                            }}
+                        >
+                            {copiedId === r.id ? 'скопировано ✓' : 'копировать промпт'}
+                        </button>
+                    </summary>
+                    <p class="muted strategy-input-hint">
+                        Точный вход модели. Скопируй и вставь в Opus / GPT-5 — сравнишь разбор на одном и том же
+                        контексте.
+                    </p>
+                    <h4>System prompt</h4>
+                    <pre class="strategy-input-pre">{r.system_prompt}</pre>
+                    <h4>User content</h4>
+                    <pre class="strategy-input-pre">{r.user_content}</pre>
+                </details>
+            {/if}
         </article>
     {/each}
 {/if}
