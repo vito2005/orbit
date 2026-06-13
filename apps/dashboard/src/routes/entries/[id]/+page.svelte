@@ -16,9 +16,14 @@
 </script>
 
 <div class="detail-header">
-    <a href="/" class="back">← back to list</a>
+    <a href="/inbox" class="back">← back to list</a>
     <div class="detail-actions">
-        {#if e.priority !== 'archive'}
+        {#if e.priority === 'archive'}
+            <form method="POST" action="?/setPriority">
+                <input type="hidden" name="priority" value="backlog" />
+                <button type="submit" class="btn-secondary">Unarchive</button>
+            </form>
+        {:else}
             <form method="POST" action="?/archive">
                 <button type="submit" class="btn-secondary">Archive</button>
             </form>

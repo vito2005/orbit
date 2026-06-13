@@ -12,7 +12,6 @@
         <header class="topbar">
             <a href="/" class="brand">🪐 Orbit</a>
             <nav>
-                <a href="/">Now</a>
                 <a href="/inbox">Inbox</a>
                 <a href="/strategy">🧭 Strategy</a>
                 <a href="/inbox?priority=archive">📦 Archive</a>

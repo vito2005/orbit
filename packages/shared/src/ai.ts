@@ -3,16 +3,7 @@ import OpenAI, { toFile } from 'openai'
 
 import { env } from './env'
 import type { Resume, StrategyContext } from './types'
-import {
-    type AIAnalysis,
-    CATEGORIES,
-    type Category,
-    ENERGIES,
-    type Energy,
-    type Entry,
-    PRIORITIES,
-    type Priority,
-} from './types'
+import { type AIAnalysis, CATEGORIES, type Category, ENERGIES, type Energy, type Entry } from './types'
 
 let openaiCached: OpenAI | null = null
 let anthropicCached: Anthropic | null = null
@@ -152,12 +143,11 @@ const SYSTEM_PROMPT = `You are a personal life-inbox assistant. The user sends r
   "category": one of: ${CATEGORIES.map((c) => `"${c}"`).join(', ')},
   "tags": string[],            // 2-6 short lowercase tags
   "next_action": string|null,  // a concrete next step if obvious, else null
-  "priority": one of: ${PRIORITIES.map((p) => `"${p}"`).join(', ')},
   "energy": one of: ${ENERGIES.map((e) => `"${e}"`).join(', ')},
   "content_potential": number|null  // 1-10 if it could become a reels/post/video, else null
 }
 
-User context (use for category disambiguation and content_potential scoring, NOT for priority):
+User context (use for category disambiguation and content_potential scoring):
 - Primary career vector: high-paid frontend / Three.js / creative engineering (international market). Programming is the main axis — work / 3d tasks deserve precise categorization.
 - Primary content channel: YouTube (long-form videos about Three.js / frontend / creative tech). Three.js / frontend / shader / WebGL demo ideas → content_potential 7-10. Personal vlog / random thoughts → 1-4.
 
@@ -170,12 +160,6 @@ Categorization rules:
 - Income, expenses, offers, salary, debts, investments => "money"
 - Sport, sleep, food, mental health => "health"
 - If uncertain => "personal" or "random"
-
-Priority rules (be CONSERVATIVE — sprint planning happens separately):
-- "Сегодня", "срочно", explicit today/tomorrow deadline => "now"
-- ONLY if user explicitly says "на этой неделе", "до пятницы", "к концу недели" => "this_week"
-- DEFAULT for ideas/tasks without explicit time-bound urgency => "later" (they go to backlog; user decides sprint inclusion separately)
-- Vent / done / informational only => "archive"
 
 Return JSON only. No prose, no markdown fences.`
 
@@ -206,10 +190,6 @@ function normalizeAnalysis(input: unknown, transcript: string): AIAnalysis {
     const category = (CATEGORIES as readonly string[]).includes(obj.category as string)
         ? (obj.category as Category)
         : 'random'
-
-    const priority = (PRIORITIES as readonly string[]).includes(obj.priority as string)
-        ? (obj.priority as Priority)
-        : 'later'
 
     const energy = (ENERGIES as readonly string[]).includes(obj.energy as string) ? (obj.energy as Energy) : 'medium'
 
@@ -243,7 +223,6 @@ function normalizeAnalysis(input: unknown, transcript: string): AIAnalysis {
             typeof obj.next_action === 'string' && obj.next_action.trim().length > 0
                 ? (obj.next_action as string)
                 : null,
-        priority,
         energy,
         content_potential: cp,
     }
@@ -439,7 +418,7 @@ export async function generateStrategy(context: StrategyContext): Promise<Strate
 You are NOT an enthusiastic coach. You are NOT a planner that lists tasks. You are a strategist who:
 - Calls out open loops the user is carrying (incomplete commitments, abandoned threads — the "backpack" feeling).
 - Identifies the ONE thing to focus on next 30 days. Not three things. ONE. Justify why.
-- Names what to ARCHIVE (not "later" — archive). Be ruthless. Reducing scope is the gift.
+- Names what to ARCHIVE outright (don't leave it lingering in the backlog). Be ruthless. Reducing scope is the gift.
 - Suggests a realistic time-of-day strategy based on the user's actual schedule constraints.
 - Lists 1-2 micro-wins to close THIS week (small, shippable — defeat the backpack).
 - Names ONE honest risk that could derail the plan.

@@ -42,12 +42,12 @@ export const actions: Actions = {
     archive: async ({ params, request }) => {
         await archiveEntry(params.id as string)
         const data = await request.formData()
-        throw redirect(303, safeRedirect(data, '/'))
+        throw redirect(303, safeRedirect(data, '/inbox'))
     },
     delete: async ({ params, request }) => {
         await deleteEntry(params.id as string)
         const data = await request.formData()
-        throw redirect(303, safeRedirect(data, '/'))
+        throw redirect(303, safeRedirect(data, '/inbox'))
     },
     setPriority: async ({ params, request }) => {
         const data = await request.formData()
@@ -132,7 +132,6 @@ export const actions: Actions = {
             return fail(400, { error: 'Ничего не выбрано.' })
         }
 
-        const inheritedPriority = parent.priority === 'archive' ? 'later' : parent.priority
         for (const s of selected) {
             const inherited = {
                 title: s.title,
@@ -140,7 +139,6 @@ export const actions: Actions = {
                 category: parent.category,
                 tags: parent.tags,
                 next_action: s.next_action,
-                priority: inheritedPriority,
                 energy: parent.energy,
                 content_potential: null,
             }
@@ -154,7 +152,7 @@ export const actions: Actions = {
                 category: parent.category,
                 tags: parent.tags,
                 next_action: s.next_action,
-                priority: inheritedPriority,
+                priority: 'backlog',
                 energy: parent.energy,
                 content_potential: null,
                 raw_ai_json: inherited,

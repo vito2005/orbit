@@ -369,32 +369,6 @@ a:hover {
     color: var(--muted);
     font-size: 12px;
 }
-.done-form {
-    margin: 0;
-}
-.done-toggle {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: 1.5px solid var(--border);
-    background: transparent;
-    color: var(--muted);
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-.done-toggle:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-.done-toggle.done {
-    background: var(--ok);
-    border-color: var(--ok);
-    color: #0a0c10;
-}
 .inline-form {
     margin: 0;
     display: inline;
@@ -675,13 +649,6 @@ a:hover {
     font-size: 13px;
     font-weight: normal;
 }
-.done-toggle.preview {
-    background: transparent;
-    border-color: var(--border);
-    color: var(--muted);
-    cursor: default;
-}
-
 .week-actions {
     display: flex;
     align-items: center;
@@ -690,21 +657,6 @@ a:hover {
 }
 .week-actions form {
     margin: 0;
-}
-
-.subtask-chip {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgba(125, 211, 252, 0.1);
-    color: var(--accent);
-    border: 1px solid rgba(125, 211, 252, 0.25);
-    font-size: 11px;
-    font-weight: 600;
-}
-.subtask-chip:hover {
-    background: rgba(125, 211, 252, 0.2);
-    text-decoration: none;
 }
 
 .subtask-form {
@@ -876,23 +828,6 @@ a:hover {
     color: var(--accent);
 }
 
-.parent-chip {
-    display: inline-block;
-    color: var(--muted);
-    font-size: 11px;
-    margin-bottom: 4px;
-    padding: 1px 6px;
-    background: var(--bg-elev);
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    line-height: 1.4;
-}
-.parent-chip:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-    text-decoration: none;
-}
-
 .needs-context {
     background: rgba(251, 191, 36, 0.1);
     border: 1px solid rgba(251, 191, 36, 0.35);
@@ -909,81 +844,6 @@ a:hover {
 }
 .needs-context p:last-child {
     margin-bottom: 0;
-}
-
-.now-stack {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.now-card {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-}
-.now-card.stale {
-    background: rgba(251, 191, 36, 0.06);
-    border-color: rgba(251, 191, 36, 0.25);
-}
-.now-body {
-    flex: 1;
-    min-width: 0;
-}
-.now-title {
-    display: block;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 4px;
-}
-.now-title:hover {
-    color: var(--accent);
-    text-decoration: none;
-}
-.now-meta {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-top: 6px;
-    flex-wrap: wrap;
-}
-.now-meta .muted {
-    color: var(--muted);
-    font-size: 12px;
-}
-.stale-toggle {
-    background: transparent !important;
-    border-color: var(--warn) !important;
-    color: var(--warn) !important;
-    font-size: 14px !important;
-}
-
-.stale-section {
-    margin-top: 32px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 16px;
-}
-.stale-section summary {
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--warn);
-    font-weight: 600;
-    user-select: none;
-}
-.stale-section summary:hover {
-    color: var(--text);
-}
-.stale-section[open] summary {
-    margin-bottom: 4px;
 }
 
 .strategy-card {
@@ -1226,30 +1086,4 @@ a:hover {
     color: var(--danger);
     font-size: 13px;
     margin-bottom: 10px;
-}
-
-.badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-.badge.now {
-    background: rgba(248, 113, 113, 0.15);
-    color: var(--danger);
-}
-.badge.this_week {
-    background: rgba(125, 211, 252, 0.15);
-    color: var(--accent);
-}
-.badge.later {
-    background: rgba(138, 142, 155, 0.15);
-    color: var(--muted);
-}
-.badge.archive {
-    background: rgba(138, 142, 155, 0.1);
-    color: var(--muted);
 }

@@ -73,7 +73,13 @@
             {/if}
             <EntryEdit {entry} {redirectTo} />
             <div class="card-actions">
-                {#if entry.priority !== 'archive'}
+                {#if entry.priority === 'archive'}
+                    <form method="POST" action="/entries/{entry.id}?/setPriority">
+                        <input type="hidden" name="priority" value="backlog" />
+                        <input type="hidden" name="redirectTo" value={redirectTo} />
+                        <button type="submit" class="card-action">Unarchive</button>
+                    </form>
+                {:else}
                     <form method="POST" action="/entries/{entry.id}?/archive">
                         <input type="hidden" name="redirectTo" value={redirectTo} />
                         <button type="submit" class="card-action">Archive</button>

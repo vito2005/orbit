@@ -12,28 +12,12 @@ const CATEGORY_EMOJI: Record<string, string> = {
     random: '🌀',
 }
 
-const PRIORITY_EMOJI: Record<string, string> = {
-    now: '🔥',
-    this_week: '📅',
-    later: '🕓',
-    archive: '📦',
-}
-
 export function categoryLabel(c: string): string {
     return `${CATEGORY_EMOJI[c] ?? '•'} ${c}`
 }
 
-export function priorityLabel(p: string): string {
-    return `${PRIORITY_EMOJI[p] ?? '•'} ${p.replace(/_/g, ' ')}`
-}
-
 export function formatSaved(entry: Entry): string {
-    const lines = [
-        'Saved ✅',
-        `*Title:* ${escape(entry.title)}`,
-        `*Category:* ${categoryLabel(entry.category)}`,
-        `*Priority:* ${priorityLabel(entry.priority)}`,
-    ]
+    const lines = ['Saved ✅', `*Title:* ${escape(entry.title)}`, `*Category:* ${categoryLabel(entry.category)}`]
     if (entry.next_action) {
         lines.push(`*Next action:* ${escape(entry.next_action)}`)
     }

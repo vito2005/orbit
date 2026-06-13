@@ -105,66 +105,16 @@ export async function deleteEntry(id: string): Promise<void> {
     if (error) throw new Error(`DB delete failed: ${error.message}`)
 }
 
-const PRIORITY_RANK: Record<string, number> = { now: 0, this_week: 1, later: 2, archive: 3 }
-
-// The single source of truth for the pull-based stack. Orders by priority
-// (now > this_week > later) then by oldest first so aging tasks bubble up
-// — Bullet-Journal-style. Done and archived are excluded.
-//
-// Parents that have ANY open subtask are also filtered out: AI / user should
-// work on the subtask first, not the abstract parent.
-export async function listNow(limit = 100): Promise<Entry[]> {
-    const supabase = getSupabase()
-    const { data, error } = await supabase
-        .from('entries')
-        .select('*')
-        .in('priority', ['now', 'this_week', 'later'])
-        .is('done_at', null)
-        .order('created_at', { ascending: true })
-        .limit(limit * 2)
-    if (error) {
-        throw new Error(`DB list now failed: ${error.message}`)
-    }
-    const entries = (data ?? []) as Entry[]
-
-    // Filter out parents with open children
-    let result = entries
-    if (entries.length > 0) {
-        const { data: openChildren } = await supabase
-            .from('entries')
-            .select('parent_id')
-            .in(
-                'parent_id',
-                entries.map((e) => e.id),
-            )
-            .is('done_at', null)
-        const blocked = new Set(
-            (openChildren ?? [])
-                .map((r) => (r as { parent_id: string | null }).parent_id)
-                .filter((p): p is string => typeof p === 'string'),
-        )
-        result = entries.filter((c) => !blocked.has(c.id))
-    }
-
-    return result
-        .sort((a, b) => {
-            const r = (PRIORITY_RANK[a.priority] ?? 99) - (PRIORITY_RANK[b.priority] ?? 99)
-            if (r !== 0) return r
-            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        })
-        .slice(0, limit)
-}
-
-// Entries that have been open for more than N days. The /now stale section
-// surfaces these so the user can archive aggressively (Bullet Journal migration
-// rule: if you keep moving it, kill it).
+// Entries that have been open for more than N days. The strategy report counts
+// these so the user can archive aggressively (Bullet Journal migration rule:
+// if you keep moving it, kill it).
 export async function listStale(olderThanDays = 14, limit = 50): Promise<Entry[]> {
     const supabase = getSupabase()
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString()
     const { data, error } = await supabase
         .from('entries')
         .select('*')
-        .in('priority', ['now', 'this_week', 'later'])
+        .neq('priority', 'archive')
         .is('done_at', null)
         .lt('created_at', cutoff)
         .order('created_at', { ascending: true })

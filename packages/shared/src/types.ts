@@ -12,7 +12,7 @@ export const CATEGORIES = [
 
 export type Category = (typeof CATEGORIES)[number]
 
-export const PRIORITIES = ['now', 'this_week', 'later', 'archive'] as const
+export const PRIORITIES = ['backlog', 'archive'] as const
 export type Priority = (typeof PRIORITIES)[number]
 
 export const ENERGIES = ['low', 'medium', 'high'] as const
@@ -26,7 +26,6 @@ export interface AIAnalysis {
     category: Category
     tags: string[]
     next_action: string | null
-    priority: Priority
     energy: Energy
     content_potential: number | null
 }
@@ -93,8 +92,6 @@ export interface StrategyContext {
     sprint_label: string
     sprint_days_left: number
     counts: {
-        now: number
-        this_week: number
         backlog: number
         stale_over_14_days: number
         done_last_7_days: number

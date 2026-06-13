@@ -11,9 +11,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
 }
 
 const PRIORITY_LABEL: Record<string, string> = {
-    now: '🔥 now',
-    this_week: '📅 this week',
-    later: '🕓 later',
+    backlog: '🗂 backlog',
     archive: '📦 archive',
 }
 

@@ -24,12 +24,10 @@ export const load: PageServerLoad = async () => {
 export const actions: Actions = {
     generate: async () => {
         const sprint = currentSprint()
-        const [profile, resumes, nowCount, weekCount, backlogCount, stale, recent] = await Promise.all([
+        const [profile, resumes, backlogCount, stale, recent] = await Promise.all([
             getProfile(),
             listResumes(),
-            countOpenInPriority('now'),
-            countOpenInPriority('this_week'),
-            countOpenInPriority('later'),
+            countOpenInPriority('backlog'),
             listStale(14, 100),
             listEntries({ sinceDays: 14, limit: 60 }),
         ])
@@ -46,8 +44,6 @@ export const actions: Actions = {
             sprint_label: sprint.label,
             sprint_days_left: sprint.daysLeft,
             counts: {
-                now: nowCount,
-                this_week: weekCount,
                 backlog: backlogCount,
                 stale_over_14_days: stale.length,
                 done_last_7_days: done7.length,
