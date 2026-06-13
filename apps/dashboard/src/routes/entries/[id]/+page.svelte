@@ -125,7 +125,7 @@
             <textarea
                 name="extra_context"
                 rows="8"
-                placeholder="Вставь сюда: программу курса, brief задачи, ссылки, ТЗ — что угодно. AI будет использовать это."
+                placeholder="Вставь сюда программу курса, brief задачи, ссылки или ТЗ. AI будет использовать этот контекст."
                 >{e.extra_context ?? ''}</textarea
             >
             <div class="profile-form-actions">

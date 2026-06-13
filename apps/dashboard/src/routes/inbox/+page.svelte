@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { SvelteURLSearchParams } from 'svelte/reactivity'
+
     import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { categoryEmoji, formatRelative, priorityLabel } from '$lib/format'
 
@@ -9,8 +11,7 @@
     const redirectTo = $derived(buildRedirectTo(data.filters))
 
     function buildRedirectTo(filters: { search: string; category: string; priority: string }): string {
-        // eslint-disable-next-line svelte/prefer-svelte-reactivity
-        const params = new URLSearchParams()
+        const params = new SvelteURLSearchParams()
         if (filters.search) params.set('q', filters.search)
         if (filters.category) params.set('category', filters.category)
         if (filters.priority) params.set('priority', filters.priority)
@@ -38,7 +39,7 @@
 
 {#if data.filters.priority}
     <p style="color: var(--muted); font-size: 13px; margin-bottom: 12px;">
-        Filtered to <strong>{priorityLabel(data.filters.priority)}</strong> — <a href="/inbox">clear</a>
+        Filtered to <strong>{priorityLabel(data.filters.priority)}</strong>. <a href="/inbox">Clear filter</a>
     </p>
 {/if}
 
