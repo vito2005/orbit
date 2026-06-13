@@ -1,0 +1,335 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+    /* The app only ever breaks at 600px and 820px, so sm/md are remapped to
+       those exact widths — there is no use of the Tailwind defaults. */
+    --breakpoint-sm: 600px;
+    --breakpoint-md: 820px;
+
+    --font-sans: 'Hanken Grotesk', system-ui, sans-serif;
+    --font-serif: 'Newsreader', Georgia, serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+
+    --color-bg: #e9dfcb;
+    --color-paper: #f6f1e7;
+    --color-surface: #fffdf8;
+    --color-surface-2: #efe7d7;
+    --color-border: #e2d6bf;
+    --color-border-strong: #cfc0a3;
+    --color-text: #2b2620;
+    --color-text-2: #6c6253;
+    --color-muted: #9c9080;
+    --color-accent: #b9603a;
+    --color-accent-hover: #984b2d;
+    --color-accent-soft: #f3e2d3;
+    --color-danger: #963b2d;
+    --color-danger-soft: #f4ded7;
+    --color-warn: #8c6a1e;
+    --color-warn-soft: #f4ead0;
+    --color-ok: #5c7447;
+
+    --radius-field: 8px;
+    --radius-box: 12px;
+    --radius-card: 18px;
+
+    --shadow-soft: 0 6px 18px rgba(72, 53, 31, 0.07);
+    --shadow-card: 0 16px 44px rgba(72, 53, 31, 0.08);
+}
+
+@font-face {
+    font-family: 'Hanken Grotesk';
+    src: url('/fonts/hanken-grotesk-400.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 400;
+}
+@font-face {
+    font-family: 'Hanken Grotesk';
+    src: url('/fonts/hanken-grotesk-500.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 500;
+}
+@font-face {
+    font-family: 'Hanken Grotesk';
+    src: url('/fonts/hanken-grotesk-600.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 600;
+}
+@font-face {
+    font-family: 'Hanken Grotesk';
+    src: url('/fonts/hanken-grotesk-700.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 700;
+}
+@font-face {
+    font-family: 'Newsreader';
+    src: url('/fonts/newsreader-400.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 400;
+}
+@font-face {
+    font-family: 'Newsreader';
+    src: url('/fonts/newsreader-500.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 500;
+}
+@font-face {
+    font-family: 'Newsreader';
+    src: url('/fonts/newsreader-600.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 600;
+}
+@font-face {
+    font-family: 'Newsreader';
+    src: url('/fonts/newsreader-italic-400.ttf') format('truetype');
+    font-display: swap;
+    font-style: italic;
+    font-weight: 400;
+}
+@font-face {
+    font-family: 'Newsreader';
+    src: url('/fonts/newsreader-italic-500.ttf') format('truetype');
+    font-display: swap;
+    font-style: italic;
+    font-weight: 500;
+}
+@font-face {
+    font-family: 'IBM Plex Mono';
+    src: url('/fonts/ibm-plex-mono-400.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 400;
+}
+@font-face {
+    font-family: 'IBM Plex Mono';
+    src: url('/fonts/ibm-plex-mono-500.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 500;
+}
+
+@layer base {
+    :root {
+        color-scheme: light;
+        font-synthesis: none;
+    }
+
+    [data-theme='dark'] {
+        color-scheme: dark;
+        --color-bg: #1c1711;
+        --color-paper: #241e17;
+        --color-surface: #2a221b;
+        --color-surface-2: #332a21;
+        --color-border: #3a3022;
+        --color-border-strong: #4c4030;
+        --color-text: #f2ece0;
+        --color-text-2: #c2b8a6;
+        --color-muted: #8f8472;
+        --color-accent: #e08a5a;
+        --color-accent-hover: #ec9d70;
+        --color-accent-soft: #38271b;
+        --color-danger: #e08a72;
+        --color-danger-soft: #3a221b;
+        --color-warn: #d6ab51;
+        --color-warn-soft: #332915;
+        --color-ok: #93b06f;
+        --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.4);
+        --shadow-card: 0 18px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    html {
+        min-height: 100%;
+        background: var(--color-bg);
+        scroll-behavior: smooth;
+    }
+
+    body {
+        min-height: 100%;
+        margin: 0;
+        color: var(--color-text);
+        background:
+            radial-gradient(
+                circle at 8% 0%,
+                color-mix(in srgb, var(--color-surface) 65%, transparent),
+                transparent 28rem
+            ),
+            var(--color-bg);
+        font-family: var(--font-sans);
+        font-size: 15px;
+        line-height: 1.55;
+        text-rendering: optimizeLegibility;
+    }
+
+    body::before {
+        position: fixed;
+        z-index: 10;
+        inset: 0;
+        pointer-events: none;
+        content: '';
+        opacity: 0.18;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.07'/%3E%3C/svg%3E");
+    }
+
+    [data-theme='dark'] body::before {
+        opacity: 0.1;
+    }
+
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    summary {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    a {
+        color: var(--color-accent);
+        text-decoration: none;
+        text-underline-offset: 0.18em;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+
+    :focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--color-accent) 26%, transparent);
+        outline-offset: 3px;
+    }
+
+    ::selection {
+        color: var(--color-text);
+        background: color-mix(in srgb, var(--color-accent) 42%, transparent);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+        text-wrap: pretty;
+    }
+
+    input,
+    select,
+    textarea {
+        width: 100%;
+        border: 1px solid var(--color-border-strong);
+        border-radius: var(--radius-field);
+        color: var(--color-text);
+        background: var(--color-surface);
+        transition:
+            border-color 140ms ease,
+            box-shadow 140ms ease,
+            background 140ms ease;
+    }
+
+    input[type='search'],
+    input[type='text'],
+    input[type='password'],
+    select {
+        min-height: 42px;
+        padding: 9px 12px;
+    }
+
+    textarea {
+        padding: 13px 14px;
+        line-height: 1.65;
+        resize: vertical;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        color: var(--color-muted);
+        opacity: 1;
+    }
+
+    input:hover,
+    select:hover,
+    textarea:hover {
+        border-color: var(--color-muted);
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        border-color: var(--color-accent);
+        outline: 0;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 16%, transparent);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}
+
+/* AI-generated markdown (strategy report) is injected via {@html}, so its
+   elements can't carry utility classes — style them here instead. */
+@layer components {
+    .strategy-prose {
+        max-width: 70ch;
+    }
+
+    .strategy-prose h2,
+    .strategy-prose h3 {
+        margin: 24px 0 9px;
+        color: var(--color-text);
+        font-family: var(--font-serif);
+        font-weight: 500;
+        letter-spacing: -0.01em;
+    }
+
+    .strategy-prose h2 {
+        font-size: 25px;
+    }
+
+    .strategy-prose h3 {
+        font-size: 20px;
+    }
+
+    .strategy-prose p,
+    .strategy-prose li {
+        color: var(--color-text-2);
+        font-size: 14px;
+        line-height: 1.72;
+    }
+
+    .strategy-prose p {
+        margin: 0 0 10px;
+    }
+
+    .strategy-prose ul,
+    .strategy-prose ol {
+        margin: 6px 0 16px;
+        padding-left: 22px;
+    }
+
+    .strategy-prose ul {
+        list-style: disc;
+    }
+
+    .strategy-prose ol {
+        list-style: decimal;
+    }
+
+    .strategy-prose li {
+        margin-bottom: 6px;
+    }
+
+    .strategy-prose strong {
+        font-weight: 600;
+    }
+}

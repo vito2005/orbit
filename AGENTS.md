@@ -207,40 +207,36 @@ through `$props()`:
 - Several unrelated top-level blocks in one `.svelte` file is also a signal
   to split, even before the 200-line threshold.
 
-### Styling: hand-rolled CSS + mobile-first
+### Styling: Tailwind v4 + mobile-first
 
-- All styles live in [apps/dashboard/src/routes/styles.css](apps/dashboard/src/routes/styles.css)
-  and use the CSS variables (`--bg`, `--accent`, `--muted`, etc.). Don't
-  introduce a CSS framework yet — Tailwind may come later, deliberately.
-- **Mobile-first.** Write base styles for mobile, then layer desktop on top
-  with `min-width` media queries. Desktop-first (`max-width` overrides) is
-  allowed only as a deliberate exception.
+The dashboard uses **Tailwind v4**, wired through `@tailwindcss/vite`. The
+single stylesheet is [apps/dashboard/src/app.css](apps/dashboard/src/app.css),
+imported once in `+layout.svelte`.
 
-```css
-/* ✗ desktop-first */
-.gallery {
-  grid-template-columns: 1fr 1fr;
-}
-@media (max-width: 720px) {
-  .gallery {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ✓ mobile-first */
-.gallery {
-  grid-template-columns: 1fr;
-}
-@media (min-width: 720px) {
-  .gallery {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-```
-
-- Use semantic class names (`hub-section`, `entry-edit-chip`), not utility
-  fragments. When we migrate to Tailwind, the migration unit is one
-  component at a time — semantic classes survive that.
+- **Design tokens are the source of truth.** Colors (`--color-surface`,
+  `--color-accent`, `--color-muted`, …), fonts, radii (`rounded-field/box/card`)
+  and shadows (`shadow-soft/card`) live in the `@theme` block. Use the generated
+  utilities (`bg-surface`, `text-muted`, `rounded-card`, `font-serif`) — never
+  raw hex in markup.
+- **Dark mode is a token swap, not `dark:` variants.** `[data-theme="dark"]`
+  re-defines the same CSS variables in `@layer base`, so every `bg-surface` /
+  `text-muted` re-themes automatically. Don't sprinkle `dark:` utilities — add a
+  dark token override instead. The theme is set before first paint by an inline
+  script in `app.html` and toggled by
+  [ThemeToggle.svelte](apps/dashboard/src/lib/components/ThemeToggle.svelte)
+  (persisted to `localStorage`, defaulting to `prefers-color-scheme`).
+- **Breakpoints are remapped:** `sm` = 600px, `md` = 820px — the only two the
+  app uses. The Tailwind defaults are not used.
+- **Mobile-first.** Write base utilities for mobile, then layer desktop with
+  `sm:` / `md:` prefixes. No `max-width` overrides.
+- **Repeated component recipes live in [$lib/ui.ts](apps/dashboard/src/lib/ui.ts)**
+  as exported utility-string constants (`btnPrimary`, `card`, `chip`,
+  `calloutError`, …). Reuse those instead of re-typing the full string or
+  reintroducing a semantic CSS class. One-off layout stays inline.
+- **What stays in CSS (not utilities):** base element styling for
+  `input` / `select` / `textarea` / `a` (`@layer base`), and AI-generated
+  markdown (`.strategy-prose`) whose elements are injected via `{@html}` and
+  can't carry classes. Keep these minimal — everything else is utilities.
 
 ## Elysia (bot HTTP)
 

@@ -11,10 +11,15 @@
     }
 </script>
 
-<div class="entry-edit">
-    <form method="POST" action="/entries/{entry.id}?/setCategory" class="entry-edit-form">
+<div class="mt-3 flex flex-wrap items-center gap-1.5">
+    <form method="POST" action="/entries/{entry.id}?/setCategory" class="m-0 inline-flex">
         <input type="hidden" name="redirectTo" value={redirectTo} />
-        <select name="category" onchange={autoSubmit} aria-label="Категория" class="entry-edit-select">
+        <select
+            name="category"
+            onchange={autoSubmit}
+            aria-label="Категория"
+            class="w-auto min-h-7.75 cursor-pointer rounded-full border-border bg-surface-2 py-1 pr-7.5 pl-2.5 text-[11px] text-text-2"
+        >
             {#each CATEGORIES as c (c)}
                 <option value={c} selected={entry.category === c}>{categoryEmoji(c)} {c}</option>
             {/each}
