@@ -29,7 +29,7 @@ export const actions: Actions = {
             listResumes(),
             countOpenInPriority('backlog'),
             listStale(14, 100),
-            listEntries({ sinceDays: 14, limit: 60 }),
+            listEntries({ limit: 1000 }),
         ])
 
         const parentTitles = await getParentTitles(recent)
@@ -41,6 +41,7 @@ export const actions: Actions = {
         const context: StrategyContext = {
             profile_about_me: profile.about_me,
             resumes: resumes.map((r) => ({ label: r.label, content_text: r.content_text })),
+            daily_hours: profile.daily_hours,
             sprint_label: sprint.label,
             sprint_days_left: sprint.daysLeft,
             counts: {
@@ -49,7 +50,7 @@ export const actions: Actions = {
                 done_last_7_days: done7.length,
                 captured_last_7_days: last7.length,
             },
-            recent_entries: recent.slice(0, 40).map((e) => ({
+            recent_entries: recent.map((e) => ({
                 title: e.title,
                 category: e.category,
                 priority: e.priority,

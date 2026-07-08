@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import { env } from './env'
-import type { Entry, NewEntry, Resume, StrategyReport, UserProfile } from './types'
+import type { Entry, NewEntry, Resume, StrategyReport, UserProfile, WeekPlan } from './types'
 
 let cached: SupabaseClient | null = null
 
@@ -220,18 +220,29 @@ export async function getProfile(): Promise<UserProfile> {
     const supabase = getSupabase()
     const { data, error } = await supabase
         .from('user_profile')
-        .select('about_me, updated_at')
+        .select('about_me, daily_hours, updated_at')
         .eq('id', true)
         .maybeSingle()
     if (error) {
         throw new Error(`DB profile get failed: ${error.message}`)
     }
-    return (
-        (data as UserProfile | null) ?? {
-            about_me: '',
-            updated_at: new Date().toISOString(),
-        }
-    )
+    if (!data) {
+        return { about_me: '', daily_hours: 1, updated_at: new Date().toISOString() }
+    }
+    const row = data as UserProfile
+    // Postgres `numeric` can arrive as a string — normalize so the typed number is honest.
+    return { ...row, daily_hours: Number(row.daily_hours) || 1 }
+}
+
+export async function saveDailyHours(hours: number): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase
+        .from('user_profile')
+        .update({ daily_hours: hours, updated_at: new Date().toISOString() })
+        .eq('id', true)
+    if (error) {
+        throw new Error(`DB daily hours save failed: ${error.message}`)
+    }
 }
 
 export async function saveProfile(aboutMe: string): Promise<void> {
@@ -347,5 +358,41 @@ export async function deleteStrategyReport(id: string): Promise<void> {
     const { error } = await supabase.from('strategy_reports').delete().eq('id', id)
     if (error) {
         throw new Error(`DB delete strategy failed: ${error.message}`)
+    }
+}
+
+export async function saveWeekPlan(args: {
+    model: string
+    body: string
+    week_start: string
+    system_prompt: string
+    user_content: string
+}): Promise<WeekPlan> {
+    const supabase = getSupabase()
+    const { data, error } = await supabase.from('weekly_plans').insert(args).select().single()
+    if (error) {
+        throw new Error(`DB week plan save failed: ${error.message}`)
+    }
+    return data as WeekPlan
+}
+
+export async function listWeekPlans(limit = 10): Promise<WeekPlan[]> {
+    const supabase = getSupabase()
+    const { data, error } = await supabase
+        .from('weekly_plans')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit)
+    if (error) {
+        throw new Error(`DB list week plans failed: ${error.message}`)
+    }
+    return (data ?? []) as WeekPlan[]
+}
+
+export async function deleteWeekPlan(id: string): Promise<void> {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('weekly_plans').delete().eq('id', id)
+    if (error) {
+        throw new Error(`DB delete week plan failed: ${error.message}`)
     }
 }

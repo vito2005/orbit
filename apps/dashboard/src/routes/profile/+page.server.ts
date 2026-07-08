@@ -1,16 +1,35 @@
-import { addResume, deleteResume, getProfile, listResumes, saveProfile, updateResume } from '@orbit/shared'
+import {
+    addResume,
+    deleteResume,
+    getProfile,
+    listResumes,
+    saveDailyHours,
+    saveProfile,
+    updateResume,
+} from '@orbit/shared'
 import { fail, redirect } from '@sveltejs/kit'
 
 import { extractPdfText } from '$lib/pdf'
 
 import type { Actions, PageServerLoad } from './$types'
 
+const HOURS_OPTIONS = [0.5, 1, 1.5, 2, 3, 4]
+
 export const load: PageServerLoad = async () => {
     const [profile, resumes] = await Promise.all([getProfile(), listResumes()])
-    return { profile, resumes }
+    return { profile, resumes, hoursOptions: HOURS_OPTIONS }
 }
 
 export const actions: Actions = {
+    saveHours: async ({ request }) => {
+        const data = await request.formData()
+        const hours = Number(data.get('daily_hours'))
+        if (!HOURS_OPTIONS.includes(hours)) {
+            return fail(400, { error: 'Выбери значение из списка.' })
+        }
+        await saveDailyHours(hours)
+        throw redirect(303, '/profile?hours_saved=1')
+    },
     save: async ({ request }) => {
         const data = await request.formData()
         const aboutMe = String(data.get('about_me') ?? '').trim()

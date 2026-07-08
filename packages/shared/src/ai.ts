@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI, { toFile } from 'openai'
 
 import { env } from './env'
-import type { Resume, StrategyContext } from './types'
+import type { Resume, StrategyContext, WeekPlanContext } from './types'
 import { type AIAnalysis, CATEGORIES, type Category, ENERGIES, type Energy, type Entry } from './types'
 
 let openaiCached: OpenAI | null = null
@@ -255,8 +255,11 @@ function buildResumesBlock(resumes?: Resume[]): string {
     return `\n\nResumes (the user has uploaded ${parts.length} resume version${parts.length > 1 ? 's' : ''} tailored for different roles — read all of them together to understand the user's full experience, do NOT pick one over another):\n\n${parts.join('\n\n---\n\n')}`
 }
 
-function buildContext(profile?: string, resumes?: Resume[]): string {
+function buildContext(profile?: string, resumes?: Resume[], dailyHours?: number): string {
     let s = NORTH_STARS
+    if (dailyHours && dailyHours > 0) {
+        s += `\n\nTime the user can realistically dedicate to tasks OUTSIDE the day job: ~${dailyHours}h/day. This is the AUTHORITATIVE budget — size every task and plan to fit it, overriding any generic assumption.`
+    }
     const profileText = (profile ?? '').trim().slice(0, 2500)
     if (profileText.length > 0) {
         s += `\n\nAbout the user (free-form profile they wrote — treat as ground truth about their background, skills, current life situation):\n${profileText}`
@@ -274,9 +277,9 @@ const NORTH_STARS = `User's north stars for the next 1-2 years:
 - Constraint: work takes ~6h/day weekdays; smart work also enables promotion ($3k → $4k by year-end at current job)
 
 Time budget (very important — pick task SIZES that fit):
-- Weekdays: ~3-4h of focused time available for tasks outside the day job (family of small kid, married — evening slots are split). Fits one deep task (~1.5h) plus 1-2 medium ones (30-45 min each).
-- Weekends: more flexible — Sunday especially can accommodate 2 larger tasks (Three.js chunks, content shoot, deep work). Saturday is family-heavy but still has solid 2-3h windows.
-- Day-of-week awareness: if today is Friday → keep it light, weekend coming. If today is Sunday → can pick 1-2 ambitious creative tasks. If today is Monday → ramp up, don't overload.
+- The user's concrete daily capacity for tasks outside the day job is provided separately below — treat THAT number as authoritative for sizing. Family of small kid, married — evening slots are split and fragile.
+- Weekends are more flexible than weekdays (Sunday especially can take a larger chunk; Saturday is family-heavy but still has some windows).
+- Day-of-week awareness: Friday → keep it light, weekend coming. Sunday → can pick something more ambitious. Monday → ramp up, don't overload.
 - Never schedule more than 5 tasks for a single day. 3-4 is the sweet spot.`
 
 export async function generateMotivation(
@@ -284,6 +287,7 @@ export async function generateMotivation(
     parent: Entry | null = null,
     profile?: string,
     resumes?: Resume[],
+    dailyHours?: number,
 ): Promise<string> {
     const result = await chatCompletion(
         {
@@ -296,7 +300,7 @@ Tone rules:
 - Estimate a realistic outcome window ("через 2-3 месяца", "к концу спринта", etc.).
 - End with a sentence about the COST of dropping it (lost momentum, opportunity, etc.).
 
-${buildContext(profile, resumes)}
+${buildContext(profile, resumes, dailyHours)}
 
 Return plain text. No JSON, no markdown headers, no quotes — just the motivation paragraph.`,
             userContent: JSON.stringify({
@@ -331,7 +335,12 @@ export type SubtaskResult =
     | { kind: 'subtasks'; subtasks: SubtaskSuggestion[] }
     | { kind: 'needs_context'; question: string }
 
-export async function suggestSubtasks(entry: Entry, profile?: string, resumes?: Resume[]): Promise<SubtaskResult> {
+export async function suggestSubtasks(
+    entry: Entry,
+    profile?: string,
+    resumes?: Resume[],
+    dailyHours?: number,
+): Promise<SubtaskResult> {
     const result = await chatCompletion(
         {
             systemMessage: `You help break down ONE large task. CRITICAL RULE: do not hallucinate structure you don't actually know.
@@ -359,7 +368,7 @@ Each subtask (when you DO return them) should:
 - Be in the SAME language as the parent task (usually Russian)
 - Reference ACTUAL evidence from transcript/extra_context, NOT invented names
 
-${buildContext(profile, resumes)}
+${buildContext(profile, resumes, dailyHours)}
 
 Return JSON only. No prose, no fences.`,
             userContent: JSON.stringify({
@@ -428,6 +437,7 @@ ${NORTH_STARS}
 ${buildContext(
     context.profile_about_me,
     context.resumes.map((r) => ({ id: '', label: r.label, content_text: r.content_text, created_at: '' })),
+    context.daily_hours,
 )}
 
 Tone:
@@ -451,7 +461,7 @@ A heading-level pick. Then 2-3 sentences justifying WHY this and not the alterna
 A short bulleted list of things to actively kill from the backlog. 2-4 items. Brief reason each.
 
 ## Окно времени
-1-2 sentences proposing realistic time-of-day windows given the user's described constraints (work hours, family, energy).
+1-2 sentences proposing realistic time-of-day windows given the user's stated capacity (~${context.daily_hours}h/day outside the day job), work hours, family, and energy. Size the focus + micro-wins to fit that budget — don't propose more than fits.
 
 ## 1-2 микро-победы на эту неделю
 Numbered list. Concrete, shippable in 30-90 min each. Closes loops in the backpack.
@@ -470,6 +480,66 @@ Return ONLY the markdown — no preamble, no quotes around it.`
             temperature: 0.7,
         },
         'strategy',
+    )
+
+    return { body: result.text.trim(), model: result.model, system_prompt: systemMessage, user_content: userContent }
+}
+
+export interface WeekPlanResult {
+    body: string
+    model: string
+    system_prompt: string
+    user_content: string
+}
+
+export async function generateWeekPlan(context: WeekPlanContext): Promise<WeekPlanResult> {
+    const systemMessage = `You turn the user's 30-day strategy into a concrete plan for the CURRENT week (Mon-Sun). You are not a cheerleader and not a generic planner — you pick a SMALL, honest set of tasks that actually fit the user's real daily budget and that move the strategic focus forward.
+
+Ground rules:
+- Anchor everything on the user's ONE 30-day focus from the latest strategy (provided below). If no strategy is given, infer the most load-bearing focus from the north stars + open backlog, and say so in one line.
+- Pick tasks from the user's REAL open backlog (provided below). Reference actual entries by their title — do NOT invent tasks that aren't grounded in the backlog or the focus. You may add at most ONE small task that isn't in the backlog if the focus clearly needs it.
+- 3-5 tasks for the WHOLE week. Not per day. Fewer is better — closing loops beats opening them (the user's core pain is a "backpack" of open commitments).
+- Every task must fit the user's daily capacity. Size each one and make the week's total realistic for that budget across the days left.
+- Be ruthless about what to NOT do this week — naming what to defer is part of the plan.
+
+${NORTH_STARS}
+
+${buildContext(
+    context.profile_about_me,
+    context.resumes.map((r) => ({ id: '', label: r.label, content_text: r.content_text, created_at: '' })),
+    context.daily_hours,
+)}
+
+Tone:
+- Direct, concrete, slightly stern. No flattery.
+- Reference SPECIFIC backlog entries and the strategic focus. No generic advice.
+- Write in Russian.
+
+Output: plain text with Markdown headings (## level), exactly in this order:
+
+## Фокус недели
+1 sentence — restate the ONE focus, scoped to these ${context.week_days_left} days left in the week (${context.week_label}).
+
+## Задачи (3-5)
+A numbered list. Each item: **краткое название задачи** — one clause WHY it matters now + estimated time that fits ~${context.daily_hours}h/day. Prefer real backlog entries by their title.
+
+## Распределение по дням
+2-4 short bullets proposing which task(s) land on which day, respecting ~${context.daily_hours}h/day, lighter Fridays and the days actually left this week.
+
+## Чего НЕ делать на этой неделе
+1-2 bullets — what to consciously defer so the week stays realistic.
+
+Return ONLY the markdown — no preamble, no quotes around it.`
+
+    const userContent = JSON.stringify(context, null, 2)
+
+    const result = await chatCompletion(
+        {
+            systemMessage,
+            userContent,
+            temperature: 0.6,
+        },
+        'week_plan',
     )
 
     return { body: result.text.trim(), model: result.model, system_prompt: systemMessage, user_content: userContent }

@@ -67,6 +67,7 @@ export interface Sprint {
 
 export interface UserProfile {
     about_me: string
+    daily_hours: number
     updated_at: string
 }
 
@@ -86,9 +87,34 @@ export interface StrategyReport {
     user_content: string
 }
 
+export interface WeekPlan {
+    id: string
+    model: string
+    body: string
+    week_start: string
+    created_at: string
+    system_prompt: string
+    user_content: string
+}
+
+export interface WeekPlanContext {
+    profile_about_me: string
+    resumes: Array<{ label: string; content_text: string }>
+    daily_hours: number
+    week_label: string
+    week_days_left: number
+    latest_strategy: string | null
+    open_backlog: Array<{
+        title: string
+        category: string
+        age_days: number
+    }>
+}
+
 export interface StrategyContext {
     profile_about_me: string
     resumes: Array<{ label: string; content_text: string }>
+    daily_hours: number
     sprint_label: string
     sprint_days_left: number
     counts: {

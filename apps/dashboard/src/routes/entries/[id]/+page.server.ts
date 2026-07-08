@@ -73,7 +73,7 @@ export const actions: Actions = {
             return fail(404, { error: 'entry not found' })
         }
         const [profile, resumes] = await Promise.all([getProfile(), listResumes()])
-        const result = await suggestSubtasks(entry, profile.about_me, resumes)
+        const result = await suggestSubtasks(entry, profile.about_me, resumes, profile.daily_hours)
         if (result.kind === 'needs_context') {
             return { needsContext: result.question }
         }
@@ -99,7 +99,7 @@ export const actions: Actions = {
             getProfile(),
             listResumes(),
         ])
-        const text = await generateMotivation(entry, parent, profile.about_me, resumes)
+        const text = await generateMotivation(entry, parent, profile.about_me, resumes, profile.daily_hours)
         if (!text) {
             return fail(500, { error: 'AI не вернул мотивацию.' })
         }

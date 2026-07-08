@@ -14,6 +14,7 @@
 
     const { data, form }: { data: PageData; form: ActionData } = $props()
     const justSaved = $derived(page.url.searchParams.get('saved') === '1')
+    const hoursSaved = $derived(page.url.searchParams.get('hours_saved') === '1')
     const resumeAdded = $derived(page.url.searchParams.get('resume_added') === '1')
     const resumeUpdated = $derived(page.url.searchParams.get('resume_updated') === '1')
     const resumeDeleted = $derived(page.url.searchParams.get('resume_deleted') === '1')
@@ -24,6 +25,15 @@
     function formatDate(iso: string): string {
         const d = new Date(iso)
         return d.toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
+    }
+
+    function hoursLabel(h: number): string {
+        if (h < 1) {
+            return `${h * 60} минут`
+        }
+        const rest = h % 1 === 0 ? h % 10 : -1
+        const word = rest === 1 ? 'час' : rest >= 2 && rest <= 4 ? 'часа' : 'часов'
+        return `${h} ${word}`
     }
 </script>
 
@@ -37,9 +47,10 @@
     точнее будет план.
 </p>
 
-{#if justSaved || resumeAdded || resumeUpdated || resumeDeleted}
+{#if justSaved || hoursSaved || resumeAdded || resumeUpdated || resumeDeleted}
     <p class={calloutReasoning}>
         {#if justSaved}Профиль сохранён.{/if}
+        {#if hoursSaved}Бюджет времени сохранён.{/if}
         {#if resumeAdded}Резюме добавлено.{/if}
         {#if resumeUpdated}Резюме обновлено.{/if}
         {#if resumeDeleted}Резюме удалено.{/if}
@@ -48,6 +59,22 @@
 {#if form?.error}
     <p class={calloutError}>{form.error}</p>
 {/if}
+
+<section class="mb-9 pt-1">
+    <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">Сколько часов в день на задачи</h2>
+    <p class="mb-3 text-[13px] text-muted">
+        Реальный бюджет вне основной работы. От него AI отталкивается, выбирая размер задач для стратегии и плана на
+        неделю.
+    </p>
+    <form method="POST" action="?/saveHours" class="flex flex-wrap items-center gap-2.5">
+        <select name="daily_hours" value={Number(data.profile.daily_hours)} class="w-auto">
+            {#each data.hoursOptions as h (h)}
+                <option value={h}>{hoursLabel(h)} в день</option>
+            {/each}
+        </select>
+        <button type="submit" class={btnPrimary}>Сохранить</button>
+    </form>
+</section>
 
 <section class="mb-9 pt-1">
     <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">О себе (короткий текст)</h2>
