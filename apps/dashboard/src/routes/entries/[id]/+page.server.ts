@@ -1,6 +1,7 @@
 import {
     archiveEntry,
     CATEGORIES,
+    type Category,
     deleteEntry,
     generateMotivation,
     getEntry,
@@ -10,12 +11,10 @@ import {
     listSubtasksOf,
     type NewEntry,
     PRIORITIES,
-    setCategory,
-    setExtraContext,
-    setMotivation,
-    setPriority,
+    type Priority,
     type SubtaskSuggestion,
     suggestSubtasks,
+    updateEntry,
 } from '@orbit/shared'
 import { error, fail, redirect } from '@sveltejs/kit'
 
@@ -58,7 +57,7 @@ export const actions: Actions = {
         if (!(PRIORITIES as readonly string[]).includes(priority)) {
             return fail(400, { error: 'invalid priority' })
         }
-        await setPriority(locals.supabase, params.id as string, priority)
+        await updateEntry(locals.supabase, params.id as string, { priority: priority as Priority })
         throw redirect(303, safeRedirect(data, `/entries/${params.id}`))
     },
     setCategory: async ({ params, request, locals }) => {
@@ -67,7 +66,7 @@ export const actions: Actions = {
         if (!(CATEGORIES as readonly string[]).includes(category)) {
             return fail(400, { error: 'invalid category' })
         }
-        await setCategory(locals.supabase, params.id as string, category)
+        await updateEntry(locals.supabase, params.id as string, { category: category as Category })
         throw redirect(303, safeRedirect(data, `/entries/${params.id}`))
     },
     suggestSplit: async ({ params, locals }) => {
@@ -89,7 +88,7 @@ export const actions: Actions = {
         const data = await request.formData()
         const raw = String(data.get('extra_context') ?? '').trim()
         const value = raw.length > 0 ? raw : null
-        await setExtraContext(locals.supabase, params.id as string, value)
+        await updateEntry(locals.supabase, params.id as string, { extra_context: value })
         throw redirect(303, `/entries/${params.id}?context_saved=1`)
     },
     generateMotivation: async ({ params, locals }) => {
@@ -106,11 +105,11 @@ export const actions: Actions = {
         if (!text) {
             return fail(500, { error: 'AI не вернул мотивацию.' })
         }
-        await setMotivation(locals.supabase, entry.id, text)
+        await updateEntry(locals.supabase, entry.id, { motivation: text })
         throw redirect(303, `/entries/${entry.id}`)
     },
     clearMotivation: async ({ params, locals }) => {
-        await setMotivation(locals.supabase, params.id as string, null)
+        await updateEntry(locals.supabase, params.id as string, { motivation: null })
         throw redirect(303, `/entries/${params.id}`)
     },
     createSubtasks: async ({ params, request, locals }) => {

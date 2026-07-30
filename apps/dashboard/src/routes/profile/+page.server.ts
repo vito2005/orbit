@@ -6,8 +6,6 @@ import {
     getProfile,
     getTelegramLink,
     listResumes,
-    saveDailyHours,
-    saveNorthStars,
     saveProfile,
     unlinkTelegram,
     updateResume,
@@ -42,7 +40,7 @@ export const actions: Actions = {
         if (!HOURS_OPTIONS.includes(hours)) {
             return fail(400, { error: 'Выбери значение из списка.' })
         }
-        await saveDailyHours(locals.supabase, hours)
+        await saveProfile(locals.supabase, { daily_hours: hours })
         throw redirect(303, '/profile?hours_saved=1')
     },
     save: async ({ request, locals }) => {
@@ -51,7 +49,7 @@ export const actions: Actions = {
         if (aboutMe.length > 50000) {
             return fail(400, { error: 'Слишком длинно (макс 50000 символов).' })
         }
-        await saveProfile(locals.supabase, aboutMe)
+        await saveProfile(locals.supabase, { about_me: aboutMe })
         throw redirect(303, '/profile?saved=1')
     },
     saveNorthStars: async ({ request, locals }) => {
@@ -60,7 +58,7 @@ export const actions: Actions = {
         if (northStars.length > 10000) {
             return fail(400, { error: 'Слишком длинно (макс 10000 символов).' })
         }
-        await saveNorthStars(locals.supabase, northStars)
+        await saveProfile(locals.supabase, { north_stars: northStars })
         throw redirect(303, '/profile?north_saved=1')
     },
     connectTelegram: async ({ locals }) => {

@@ -59,6 +59,10 @@ export type NewEntry = Omit<Entry, 'id' | 'user_id' | 'created_at' | 'done_at' |
     user_id?: string
 }
 
+// The columns an entry can change after capture. Narrower than Partial<Entry>
+// so a patch can't touch id / user_id / the AI's original analysis.
+export type EntryPatch = Partial<Pick<Entry, 'priority' | 'category' | 'motivation' | 'extra_context' | 'done_at'>>
+
 // Mon-Sun calendar week — kept as context input for /strategy so the AI knows
 // where in the week the user is when reasoning about focus.
 export interface Sprint {
@@ -77,6 +81,8 @@ export interface UserProfile {
     north_stars: string
     updated_at: string
 }
+
+export type ProfilePatch = Partial<Pick<UserProfile, 'about_me' | 'daily_hours' | 'north_stars'>>
 
 export interface TelegramLink {
     user_id: string

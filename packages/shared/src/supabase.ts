@@ -1,7 +1,17 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import { env } from './env'
-import type { Entry, NewEntry, Resume, StrategyReport, TelegramLink, UserProfile, WeekPlan } from './types'
+import type {
+    Entry,
+    EntryPatch,
+    NewEntry,
+    ProfilePatch,
+    Resume,
+    StrategyReport,
+    TelegramLink,
+    UserProfile,
+    WeekPlan,
+} from './types'
 
 let cached: SupabaseClient | null = null
 
@@ -123,17 +133,9 @@ export async function listStale(client: SupabaseClient, olderThanDays = 14, limi
     return (data ?? []) as Entry[]
 }
 
-export async function markDone(client: SupabaseClient, id: string, done: boolean): Promise<void> {
-    const { error } = await client
-        .from('entries')
-        .update({ done_at: done ? new Date().toISOString() : null })
-        .eq('id', id)
-    if (error) throw new Error(`DB mark done failed: ${error.message}`)
-}
-
-export async function setPriority(client: SupabaseClient, id: string, priority: string): Promise<void> {
-    const { error } = await client.from('entries').update({ priority }).eq('id', id)
-    if (error) throw new Error(`DB set priority failed: ${error.message}`)
+export async function updateEntry(client: SupabaseClient, id: string, patch: EntryPatch): Promise<void> {
+    const { error } = await client.from('entries').update(patch).eq('id', id)
+    if (error) throw new Error(`DB entry update failed: ${error.message}`)
 }
 
 export async function listSubtasksOf(client: SupabaseClient, parentId: string): Promise<Entry[]> {
@@ -194,21 +196,6 @@ export async function countSubtasksByParent(
     return result
 }
 
-export async function setCategory(client: SupabaseClient, id: string, category: string): Promise<void> {
-    const { error } = await client.from('entries').update({ category }).eq('id', id)
-    if (error) throw new Error(`DB set category failed: ${error.message}`)
-}
-
-export async function setMotivation(client: SupabaseClient, id: string, motivation: string | null): Promise<void> {
-    const { error } = await client.from('entries').update({ motivation }).eq('id', id)
-    if (error) throw new Error(`DB set motivation failed: ${error.message}`)
-}
-
-export async function setExtraContext(client: SupabaseClient, id: string, extraContext: string | null): Promise<void> {
-    const { error } = await client.from('entries').update({ extra_context: extraContext }).eq('id', id)
-    if (error) throw new Error(`DB set extra_context failed: ${error.message}`)
-}
-
 export async function getProfile(client: SupabaseClient): Promise<UserProfile> {
     const { data, error } = await client
         .from('user_profile')
@@ -225,30 +212,12 @@ export async function getProfile(client: SupabaseClient): Promise<UserProfile> {
     return { ...row, daily_hours: Number(row.daily_hours) || 1 }
 }
 
-export async function saveProfile(client: SupabaseClient, aboutMe: string): Promise<void> {
+export async function saveProfile(client: SupabaseClient, patch: ProfilePatch): Promise<void> {
     const { error } = await client
         .from('user_profile')
-        .upsert({ about_me: aboutMe, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+        .upsert({ ...patch, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
     if (error) {
         throw new Error(`DB profile save failed: ${error.message}`)
-    }
-}
-
-export async function saveDailyHours(client: SupabaseClient, hours: number): Promise<void> {
-    const { error } = await client
-        .from('user_profile')
-        .upsert({ daily_hours: hours, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
-    if (error) {
-        throw new Error(`DB daily hours save failed: ${error.message}`)
-    }
-}
-
-export async function saveNorthStars(client: SupabaseClient, northStars: string): Promise<void> {
-    const { error } = await client
-        .from('user_profile')
-        .upsert({ north_stars: northStars, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
-    if (error) {
-        throw new Error(`DB north stars save failed: ${error.message}`)
     }
 }
 
