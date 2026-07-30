@@ -232,9 +232,18 @@
             background 140ms ease;
     }
 
-    input[type='search'],
-    input[type='text'],
-    input[type='password'],
+    /* Opt out the types that must keep their native box, so a new text-like
+       input (email, url, number…) is sized correctly without touching this. */
+    input:not(
+        [type='checkbox'],
+        [type='radio'],
+        [type='range'],
+        [type='file'],
+        [type='color'],
+        [type='submit'],
+        [type='button'],
+        [type='reset']
+    ),
     select {
         min-height: 42px;
         padding: 9px 12px;
