@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI, { toFile } from 'openai'
 
 import { env } from './env'
-import type { Resume, StrategyContext, WeekPlanContext } from './types'
+import type { Resume, StrategyContext, UserProfile, WeekPlanContext } from './types'
 import { type AIAnalysis, CATEGORIES, type Category, ENERGIES, type Energy, type Entry } from './types'
 
 let openaiCached: OpenAI | null = null
@@ -255,12 +255,20 @@ function buildResumesBlock(resumes?: Resume[]): string {
     return `\n\nResumes (the user has uploaded ${parts.length} resume version${parts.length > 1 ? 's' : ''} tailored for different roles — read all of them together to understand the user's full experience, do NOT pick one over another):\n\n${parts.join('\n\n---\n\n')}`
 }
 
-function buildContext(profile?: string, resumes?: Resume[], dailyHours?: number): string {
-    let s = NORTH_STARS
-    if (dailyHours && dailyHours > 0) {
-        s += `\n\nTime the user can realistically dedicate to tasks OUTSIDE the day job: ~${dailyHours}h/day. This is the AUTHORITATIVE budget — size every task and plan to fit it, overriding any generic assumption.`
+function buildContext(
+    ctx: { north_stars?: string; about_me?: string; daily_hours?: number },
+    resumes?: Resume[],
+): string {
+    let s = ''
+    const northStars = (ctx.north_stars ?? '').trim()
+    if (northStars.length > 0) {
+        s += `User's north stars for the next 1-2 years:\n${northStars}\n\n`
     }
-    const profileText = (profile ?? '').trim().slice(0, 2500)
+    s += PLANNING_GUIDANCE
+    if (ctx.daily_hours && ctx.daily_hours > 0) {
+        s += `\n\nTime the user can realistically dedicate to tasks OUTSIDE the day job: ~${ctx.daily_hours}h/day. This is the AUTHORITATIVE budget — size every task and plan to fit it, overriding any generic assumption.`
+    }
+    const profileText = (ctx.about_me ?? '').trim().slice(0, 2500)
     if (profileText.length > 0) {
         s += `\n\nAbout the user (free-form profile they wrote — treat as ground truth about their background, skills, current life situation):\n${profileText}`
     }
@@ -268,26 +276,19 @@ function buildContext(profile?: string, resumes?: Resume[], dailyHours?: number)
     return s
 }
 
-const NORTH_STARS = `User's north stars for the next 1-2 years:
-- Career axis: high-paid frontend / creative engineering / 3D engineer (international market)
-- Income: from $3k/month → $7.5k/month (~$90k/year)
-- YouTube subscribers: from 200 → 5000 (primary content channel; long-form videos about Three.js / frontend)
-- Three.js course (Bruno Simon) to be completed — directly serves the 3D career axis
-- Secondary content channels: Twitter (as YouTube distributor), LinkedIn (recruiter outreach), Telegram (RU audience)
-- Constraint: work takes ~6h/day weekdays; smart work also enables promotion ($3k → $4k by year-end at current job)
-
-Time budget (very important — pick task SIZES that fit):
-- The user's concrete daily capacity for tasks outside the day job is provided separately below — treat THAT number as authoritative for sizing. Family of small kid, married — evening slots are split and fragile.
-- Weekends are more flexible than weekdays (Sunday especially can take a larger chunk; Saturday is family-heavy but still has some windows).
+// Generic planning guidance — applies to every user regardless of their goals.
+// Personal north stars now live per-user in the profile (see buildContext).
+const PLANNING_GUIDANCE = `Time budget (very important — pick task SIZES that fit):
+- The user's concrete daily capacity for tasks outside the day job is provided separately below — treat THAT number as authoritative for sizing. Evening slots for someone with family are split and fragile.
+- Weekends are more flexible than weekdays (Sunday especially can take a larger chunk; Saturday is often family-heavy but still has some windows).
 - Day-of-week awareness: Friday → keep it light, weekend coming. Sunday → can pick something more ambitious. Monday → ramp up, don't overload.
 - Never schedule more than 5 tasks for a single day. 3-4 is the sweet spot.`
 
 export async function generateMotivation(
     entry: Entry,
     parent: Entry | null = null,
-    profile?: string,
-    resumes?: Resume[],
-    dailyHours?: number,
+    profile: UserProfile,
+    resumes: Resume[],
 ): Promise<string> {
     const result = await chatCompletion(
         {
@@ -300,7 +301,7 @@ Tone rules:
 - Estimate a realistic outcome window ("через 2-3 месяца", "к концу спринта", etc.).
 - End with a sentence about the COST of dropping it (lost momentum, opportunity, etc.).
 
-${buildContext(profile, resumes, dailyHours)}
+${buildContext(profile, resumes)}
 
 Return plain text. No JSON, no markdown headers, no quotes — just the motivation paragraph.`,
             userContent: JSON.stringify({
@@ -335,12 +336,7 @@ export type SubtaskResult =
     | { kind: 'subtasks'; subtasks: SubtaskSuggestion[] }
     | { kind: 'needs_context'; question: string }
 
-export async function suggestSubtasks(
-    entry: Entry,
-    profile?: string,
-    resumes?: Resume[],
-    dailyHours?: number,
-): Promise<SubtaskResult> {
+export async function suggestSubtasks(entry: Entry, profile: UserProfile, resumes: Resume[]): Promise<SubtaskResult> {
     const result = await chatCompletion(
         {
             systemMessage: `You help break down ONE large task. CRITICAL RULE: do not hallucinate structure you don't actually know.
@@ -368,7 +364,7 @@ Each subtask (when you DO return them) should:
 - Be in the SAME language as the parent task (usually Russian)
 - Reference ACTUAL evidence from transcript/extra_context, NOT invented names
 
-${buildContext(profile, resumes, dailyHours)}
+${buildContext(profile, resumes)}
 
 Return JSON only. No prose, no fences.`,
             userContent: JSON.stringify({
@@ -432,12 +428,9 @@ You are NOT an enthusiastic coach. You are NOT a planner that lists tasks. You a
 - Lists 1-2 micro-wins to close THIS week (small, shippable — defeat the backpack).
 - Names ONE honest risk that could derail the plan.
 
-${NORTH_STARS}
-
 ${buildContext(
-    context.profile_about_me,
+    { north_stars: context.north_stars, about_me: context.profile_about_me, daily_hours: context.daily_hours },
     context.resumes.map((r) => ({ id: '', label: r.label, content_text: r.content_text, created_at: '' })),
-    context.daily_hours,
 )}
 
 Tone:
@@ -502,12 +495,9 @@ Ground rules:
 - Every task must fit the user's daily capacity. Size each one and make the week's total realistic for that budget across the days left.
 - Be ruthless about what to NOT do this week — naming what to defer is part of the plan.
 
-${NORTH_STARS}
-
 ${buildContext(
-    context.profile_about_me,
+    { north_stars: context.north_stars, about_me: context.profile_about_me, daily_hours: context.daily_hours },
     context.resumes.map((r) => ({ id: '', label: r.label, content_text: r.content_text, created_at: '' })),
-    context.daily_hours,
 )}
 
 Tone:

@@ -1,14 +1,31 @@
-import { analyze, type Entry, env, insertEntry, type NewEntry, transcribeAudio, uploadAudio } from '@orbit/shared'
+import {
+    analyze,
+    type Entry,
+    getServiceClient,
+    insertEntry,
+    type NewEntry,
+    transcribeAudio,
+    uploadAudio,
+} from '@orbit/shared'
 
 import { log } from './log.ts'
 
 export async function processVoice(args: {
+    userId: string
     fileBytes: ArrayBuffer
     telegramFileName: string
     telegramMessageId: number
 }): Promise<Entry> {
+    const supabase = getServiceClient()
+
     log.info(`Uploading audio ${args.telegramFileName} (${args.fileBytes.byteLength} bytes)`)
-    const audioUrl = await uploadAudio(args.fileBytes, `${Date.now()}-${args.telegramFileName}`, 'audio/ogg')
+    const audioUrl = await uploadAudio(
+        supabase,
+        args.userId,
+        args.fileBytes,
+        `${Date.now()}-${args.telegramFileName}`,
+        'audio/ogg',
+    )
 
     log.info('Transcribing audio')
     const transcript = await transcribeAudio(args.fileBytes, args.telegramFileName)
@@ -18,6 +35,7 @@ export async function processVoice(args: {
     const analysis = await analyze(transcript)
 
     const entry: NewEntry = {
+        user_id: args.userId,
         telegram_message_id: String(args.telegramMessageId),
         type: 'voice',
         original_audio_url: audioUrl,
@@ -34,16 +52,19 @@ export async function processVoice(args: {
         parent_id: null,
     }
 
-    const saved = await insertEntry(entry)
+    const saved = await insertEntry(supabase, entry)
     log.info(`Saved entry ${saved.id} (${saved.category})`)
     return saved
 }
 
-export async function processText(args: { text: string; telegramMessageId: number }): Promise<Entry> {
+export async function processText(args: { userId: string; text: string; telegramMessageId: number }): Promise<Entry> {
+    const supabase = getServiceClient()
+
     log.info(`Analyzing text (${args.text.length} chars)`)
     const analysis = await analyze(args.text)
 
     const entry: NewEntry = {
+        user_id: args.userId,
         telegram_message_id: String(args.telegramMessageId),
         type: 'text',
         original_audio_url: null,
@@ -60,10 +81,7 @@ export async function processText(args: { text: string; telegramMessageId: numbe
         parent_id: null,
     }
 
-    const saved = await insertEntry(entry)
+    const saved = await insertEntry(supabase, entry)
     log.info(`Saved entry ${saved.id} (${saved.category})`)
     return saved
 }
-
-// keep TS happy if env is unused in some bundlers
-void env

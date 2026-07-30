@@ -17,17 +17,30 @@
         <div class={calloutError}>{form.error}</div>
     {/if}
     <form method="POST" class="grid gap-2.25">
-        <label for="dashboard-password" class="text-xs font-semibold text-text-2">Пароль</label>
-        <!-- svelte-ignore a11y_autofocus -->
+        <label for="login-email" class="text-xs font-semibold text-text-2">Email</label>
         <input
-            id="dashboard-password"
+            id="login-email"
+            class="mb-1"
+            type="email"
+            name="email"
+            value={form?.email ?? ''}
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+        />
+        <label for="login-password" class="text-xs font-semibold text-text-2">Пароль</label>
+        <input
+            id="login-password"
             class="mb-1"
             type="password"
             name="password"
-            placeholder="Dashboard password"
+            placeholder="Пароль"
             autocomplete="current-password"
-            autofocus
+            required
         />
         <button type="submit" class="{btnPrimary} min-h-11 w-full">Войти</button>
     </form>
+    <p class="mt-5 text-center text-[13px] text-text-2">
+        Нет аккаунта? <a href="/register">Зарегистрироваться</a>
+    </p>
 </div>

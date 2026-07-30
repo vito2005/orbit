@@ -15,8 +15,10 @@ export const env = {
     get TELEGRAM_BOT_TOKEN() {
         return required('TELEGRAM_BOT_TOKEN')
     },
-    get TELEGRAM_ALLOWED_USER_ID() {
-        return Number(required('TELEGRAM_ALLOWED_USER_ID'))
+    // Bot username (without @) — used to build the account-linking deep link
+    // https://t.me/<username>?start=<code> shown on the dashboard profile page.
+    get TELEGRAM_BOT_USERNAME() {
+        return optional('TELEGRAM_BOT_USERNAME', '')
     },
     get OPENAI_API_KEY() {
         return required('OPENAI_API_KEY')
@@ -45,11 +47,13 @@ export const env = {
     get SUPABASE_SERVICE_ROLE_KEY() {
         return required('SUPABASE_SERVICE_ROLE_KEY')
     },
+    // Public anon key — the dashboard uses it (with the user's session cookie)
+    // so RLS scopes every query to the logged-in user.
+    get SUPABASE_ANON_KEY() {
+        return required('SUPABASE_ANON_KEY')
+    },
     get SUPABASE_STORAGE_BUCKET() {
         return optional('SUPABASE_STORAGE_BUCKET', 'orbit-audio')
-    },
-    get DASHBOARD_PASSWORD() {
-        return optional('DASHBOARD_PASSWORD', 'changeme')
     },
     get BOT_PORT() {
         return Number(optional('BOT_PORT', '3001'))

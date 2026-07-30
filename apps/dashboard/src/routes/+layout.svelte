@@ -5,8 +5,10 @@
     import OrbitBrand from '$lib/components/OrbitBrand.svelte'
     import ThemeToggle from '$lib/components/ThemeToggle.svelte'
 
-    const { children } = $props()
-    const isLogin = $derived(page.url.pathname === '/login')
+    import type { LayoutData } from './$types'
+
+    const { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props()
+    const isAuthPage = $derived(page.url.pathname === '/login' || page.url.pathname === '/register')
 
     const navItems = [
         { href: '/', label: 'Journal' },
@@ -35,7 +37,7 @@
 </script>
 
 <div class="mx-auto min-h-dvh w-[min(100%,1040px)] px-4 pb-10 pt-4 sm:px-7 sm:pb-[54px] sm:pt-6 md:pt-7">
-    {#if !isLogin}
+    {#if !isAuthPage}
         <header
             class="mb-10.5 grid gap-3.5 border-b border-text-2/20 pb-4.5 pt-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:pb-5 sm:pt-2.5 md:mb-16"
         >
@@ -57,7 +59,10 @@
                         {item.label}
                     </a>
                 {/each}
-                <form method="POST" action="/logout" class="ml-auto">
+                {#if data.email}
+                    <span class="ml-auto hidden max-w-40 truncate text-[12px] text-muted sm:inline">{data.email}</span>
+                {/if}
+                <form method="POST" action="/logout" class={data.email ? '' : 'ml-auto'}>
                     <button
                         type="submit"
                         class="{navBase} cursor-pointer border-0 bg-transparent text-text-2 hover:bg-surface/50 hover:text-text"
@@ -74,7 +79,7 @@
         {@render children()}
     </main>
 
-    {#if !isLogin}
+    {#if !isAuthPage}
         <footer
             class="mt-16 flex items-center gap-2.5 border-t border-text-2/[0.18] pt-4.5 font-serif text-sm italic text-muted"
         >

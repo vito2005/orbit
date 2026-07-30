@@ -32,6 +32,7 @@ export interface AIAnalysis {
 
 export interface Entry {
     id: string
+    user_id: string
     created_at: string
     telegram_message_id: string | null
     type: EntryType
@@ -52,7 +53,11 @@ export interface Entry {
     extra_context: string | null
 }
 
-export type NewEntry = Omit<Entry, 'id' | 'created_at' | 'done_at' | 'motivation' | 'extra_context'>
+// user_id is optional: the bot sets it explicitly (service-role), while dashboard
+// inserts leave it to the DB default (auth.uid()).
+export type NewEntry = Omit<Entry, 'id' | 'user_id' | 'created_at' | 'done_at' | 'motivation' | 'extra_context'> & {
+    user_id?: string
+}
 
 // Mon-Sun calendar week — kept as context input for /strategy so the AI knows
 // where in the week the user is when reasoning about focus.
@@ -66,9 +71,17 @@ export interface Sprint {
 }
 
 export interface UserProfile {
+    user_id: string
     about_me: string
     daily_hours: number
+    north_stars: string
     updated_at: string
+}
+
+export interface TelegramLink {
+    user_id: string
+    telegram_id: number
+    created_at: string
 }
 
 export interface Resume {
@@ -99,6 +112,7 @@ export interface WeekPlan {
 
 export interface WeekPlanContext {
     profile_about_me: string
+    north_stars: string
     resumes: Array<{ label: string; content_text: string }>
     daily_hours: number
     week_label: string
@@ -113,6 +127,7 @@ export interface WeekPlanContext {
 
 export interface StrategyContext {
     profile_about_me: string
+    north_stars: string
     resumes: Array<{ label: string; content_text: string }>
     daily_hours: number
     sprint_label: string

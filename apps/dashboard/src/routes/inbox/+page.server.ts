@@ -2,7 +2,7 @@ import { CATEGORIES, listByPriorities, listEntries, PRIORITIES } from '@orbit/sh
 
 import type { PageServerLoad } from './$types'
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
     const category = url.searchParams.get('category') ?? ''
     const search = url.searchParams.get('q') ?? ''
     const priority = url.searchParams.get('priority') ?? ''
@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
     let entries
     if (isPriorityFilter) {
-        entries = await listByPriorities([priority])
+        entries = await listByPriorities(locals.supabase, [priority])
         if (category) entries = entries.filter((e) => e.category === category)
         if (search) {
             const term = search.toLowerCase()
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ url }) => {
             )
         }
     } else {
-        entries = await listEntries({
+        entries = await listEntries(locals.supabase, {
             category: category || undefined,
             search: search || undefined,
             limit: 200,

@@ -29,7 +29,8 @@ logic in `packages/shared` — only things consumed by both bot and dashboard.
 
 ## Architecture: simple & functional
 
-This is a single-user MVP. Keep it that way:
+This is a small multi-user product (Supabase Auth + RLS), not a big platform.
+Keep it simple:
 
 - **No DI containers, no service locators, no class hierarchies.** Plain
   functions and modules.
@@ -174,14 +175,15 @@ through `$props()`:
 
 ### Auth and cookies
 
-- The dashboard is gated behind `DASHBOARD_PASSWORD` via a session cookie set
-  in `src/routes/login/+page.server.ts` and verified in
-  [apps/dashboard/src/hooks.server.ts](apps/dashboard/src/hooks.server.ts).
-- Use the `Cookies` type from `@sveltejs/kit` for cookie helpers — don't
-  invent a structural type.
+- The dashboard is gated by Supabase Auth (email + password). Sessions live in
+  cookies managed by `@supabase/ssr`; the per-request client + `locals.user`
+  are set in [apps/dashboard/src/hooks.server.ts](apps/dashboard/src/hooks.server.ts),
+  which also redirects unauthenticated requests to `/login`. Login/registration
+  go through `locals.supabase.auth.*` in server actions — no browser Supabase
+  client.
 - **`+layout@.svelte` does NOT skip the root layout.** It only skips
-  intermediate layouts. To hide chrome (topbar, north stars) on a specific
-  route like `/login`, render it conditionally in the root layout based on
+  intermediate layouts. To hide chrome (topbar, nav) on the auth routes
+  (`/login`, `/register`), render it conditionally in the root layout based on
   `page.url.pathname` from `$app/state`. See
   [+layout.svelte](apps/dashboard/src/routes/+layout.svelte).
 
@@ -263,8 +265,10 @@ new Elysia()
 ## Telegraf bot
 
 - The `bot.use(...)` middleware in [apps/bot/src/bot.ts](apps/bot/src/bot.ts)
-  silently drops any user other than `TELEGRAM_ALLOWED_USER_ID`. Preserve
-  that guard — it is the only access control.
+  resolves the Telegram user to a linked account (`resolveTelegramUser`) and
+  drops anyone unlinked (except `/start <code>`, which binds a one-time link
+  code from the dashboard). Preserve that guard — it is the bot's access
+  control, and it sets `ctx.state.userId`, which every capture handler needs.
 - Reply formatting uses Telegram MarkdownV1. Escape `*`, `_`, `` ` ``, `[` in
   any user-derived text via the helper in
   [apps/bot/src/format.ts](apps/bot/src/format.ts). Don't `parse_mode: "MarkdownV2"` —
@@ -293,11 +297,20 @@ new Elysia()
 - Schema changes go through a new SQL file in
   [supabase/migrations/](supabase/migrations/) — never `ALTER TABLE` from
   application code.
-- RLS is off in v1 (single user, service-role only). If you ever expose the
-  Supabase URL+anon key client-side, you must enable RLS _and_ add policies
-  in the same change.
-- Storage paths are `YYYY-MM-DD/<filename>` — keep that prefix so files are
-  browsable by day in the Supabase dashboard.
+- **Multi-user with RLS.** Every data table has a `user_id` and RLS
+  (`user_id = auth.uid()`). The dashboard queries as the logged-in user
+  (anon key + session via `@supabase/ssr`, built in
+  [hooks.server.ts](apps/dashboard/src/hooks.server.ts) and passed as
+  `locals.supabase`), so RLS isolates rows — **do not** re-filter by `user_id`
+  in app code, the DB does it. Every shared query function takes the client as
+  its first argument.
+- The bot uses `getServiceClient()` (service-role, **bypasses RLS**), so it
+  must set/resolve `user_id` explicitly. Inserts from the dashboard omit
+  `user_id` — the column defaults to `auth.uid()`.
+- New tables must `enable row level security` + add an `own_rows` policy in the
+  same migration. A data table without RLS is an open leak.
+- Storage paths are `<user_id>/YYYY-MM-DD/<filename>` — keep that prefix so
+  files are per-user and browsable by day in the Supabase dashboard.
 
 ## Environment variables
 
@@ -324,6 +337,17 @@ dashboard must see it. Two pieces make that work — keep both:
 
 The bot has neither problem — `bun --watch apps/bot/src/index.ts` runs
 under Bun from the repo root, so `.env` loads automatically.
+
+## Readability over defensive checks
+
+- Prefer clean, readable code over exhaustive guard clauses. Don't add manual
+  validation or security checks on top of what the framework and the DB already
+  guarantee (Supabase Auth for identity, RLS for row isolation). Re-checking
+  `user_id` in app code when RLS already scopes the query is noise, not safety.
+- Trust inputs at internal boundaries (see "Logging and errors"). Validate only
+  at true system edges, and only what actually varies.
+- This is a small product for a handful of users, not a hardened public API —
+  keep the security surface proportional and the code easy to read.
 
 ## Logging and errors
 

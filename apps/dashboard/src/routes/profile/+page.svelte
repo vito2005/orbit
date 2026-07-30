@@ -15,10 +15,14 @@
     const { data, form }: { data: PageData; form: ActionData } = $props()
     const justSaved = $derived(page.url.searchParams.get('saved') === '1')
     const hoursSaved = $derived(page.url.searchParams.get('hours_saved') === '1')
+    const northSaved = $derived(page.url.searchParams.get('north_saved') === '1')
     const resumeAdded = $derived(page.url.searchParams.get('resume_added') === '1')
     const resumeUpdated = $derived(page.url.searchParams.get('resume_updated') === '1')
     const resumeDeleted = $derived(page.url.searchParams.get('resume_deleted') === '1')
     const lastUpdated = $derived(formatDate(data.profile.updated_at))
+
+    const tgCode = $derived(page.url.searchParams.get('tg_code'))
+    const tgLink = $derived(tgCode && data.botUsername ? `https://t.me/${data.botUsername}?start=${tgCode}` : null)
 
     let editingId = $state<string | null>(null)
 
@@ -47,10 +51,11 @@
     точнее будет план.
 </p>
 
-{#if justSaved || hoursSaved || resumeAdded || resumeUpdated || resumeDeleted}
+{#if justSaved || hoursSaved || northSaved || resumeAdded || resumeUpdated || resumeDeleted}
     <p class={calloutReasoning}>
         {#if justSaved}Профиль сохранён.{/if}
         {#if hoursSaved}Бюджет времени сохранён.{/if}
+        {#if northSaved}North stars сохранены.{/if}
         {#if resumeAdded}Резюме добавлено.{/if}
         {#if resumeUpdated}Резюме обновлено.{/if}
         {#if resumeDeleted}Резюме удалено.{/if}
@@ -59,6 +64,25 @@
 {#if form?.error}
     <p class={calloutError}>{form.error}</p>
 {/if}
+
+<section class="mb-9 pt-1">
+    <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">Telegram-бот</h2>
+    {#if data.telegramLink}
+        <p class="text-[13px] text-muted">Бот привязан. Отправляй голосовые и текст — они попадут в твой журнал.</p>
+    {:else if tgLink}
+        <p class="mb-3 text-[13px] text-muted">
+            Открой ссылку в Telegram и нажми Start — это привяжет бота к твоему аккаунту. Ссылка одноразовая.
+        </p>
+        <a href={tgLink} class={btnPrimary} target="_blank" rel="noopener">Открыть бота в Telegram</a>
+    {:else if data.botUsername}
+        <p class="mb-3 text-[13px] text-muted">Привяжи Telegram-бота, чтобы захватывать мысли голосом.</p>
+        <form method="POST" action="?/connectTelegram">
+            <button type="submit" class={btnPrimary}>Подключить Telegram</button>
+        </form>
+    {:else}
+        <p class="text-[13px] text-muted">Имя бота не настроено (TELEGRAM_BOT_USERNAME) — привязка недоступна.</p>
+    {/if}
+</section>
 
 <section class="mb-9 pt-1">
     <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">Сколько часов в день на задачи</h2>
@@ -73,6 +97,27 @@
             {/each}
         </select>
         <button type="submit" class={btnPrimary}>Сохранить</button>
+    </form>
+</section>
+
+<section class="mb-9 pt-1">
+    <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">North stars (цели на 1-2 года)</h2>
+    <p class="mb-3 text-[13px] text-muted">
+        Главные ориентиры: карьера, доход, ключевые проекты. AI держит их в фокусе, когда пишет стратегию и план недели.
+        Список — по строке на цель.
+    </p>
+    <form method="POST" action="?/saveNorthStars">
+        <textarea
+            name="north_stars"
+            rows="8"
+            class="min-h-45"
+            placeholder="- Карьерная ось: ...&#10;- Доход: с $X → $Y&#10;- Ключевой проект: ..."
+            >{data.profile.north_stars}</textarea
+        >
+        <div class="mt-3 flex flex-wrap items-center gap-2.5">
+            <button type="submit" class={btnPrimary}>Сохранить</button>
+            <span class="text-xs text-muted">{data.profile.north_stars.length} символов</span>
+        </div>
     </form>
 </section>
 

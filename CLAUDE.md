@@ -22,13 +22,15 @@ Don't duplicate env files per app.
 
 ## Architecture in one paragraph
 
-A single Telegram user (`TELEGRAM_ALLOWED_USER_ID`) sends voice or text to the
-bot. Voice is downloaded from Telegram, uploaded to Supabase Storage, then
-transcribed by Whisper. The transcript (voice) or message text (text) is sent
-to a chat model with a strict JSON-schema prompt that returns title, summary,
-category, tags, next action, priority, energy, and content potential. The bot
-inserts an `entries` row, replies with a saved-confirmation, and the SvelteKit
-dashboard reads the same table for browsing and filtering.
+A Telegram user linked to a Supabase Auth account (see the profile page's
+Connect Telegram flow) sends voice or text to the bot. Voice is downloaded from
+Telegram, uploaded to Supabase Storage, then transcribed by Whisper. The
+transcript (voice) or message text (text) is sent to a chat model with a strict
+JSON-schema prompt that returns title, summary, category, tags, next action,
+priority, energy, and content potential. The bot inserts an `entries` row scoped
+to that user, replies with a saved-confirmation, and the SvelteKit dashboard —
+gated by Supabase Auth, isolated per user via RLS — reads the same table for
+browsing and filtering.
 
 The pipeline is intentionally one direction: **capture → analyze → store →
 display**. There is no edit/update flow yet, and no client-side data fetching.

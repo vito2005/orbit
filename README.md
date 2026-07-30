@@ -60,18 +60,18 @@ cp .env.example .env
 
 ### Environment variables
 
-| Variable                    | Description                                                 |
-| --------------------------- | ----------------------------------------------------------- |
-| `TELEGRAM_BOT_TOKEN`        | Token from @BotFather                                       |
-| `TELEGRAM_ALLOWED_USER_ID`  | Your numeric Telegram user ID — bot ignores everyone else   |
-| `OPENAI_API_KEY`            | OpenAI key                                                  |
-| `OPENAI_TRANSCRIBE_MODEL`   | Defaults to `whisper-1`                                     |
-| `OPENAI_CHAT_MODEL`         | Defaults to `gpt-4o-mini`                                   |
-| `SUPABASE_URL`              | `https://<project>.supabase.co`                             |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-side only, never expose to client) |
-| `SUPABASE_STORAGE_BUCKET`   | Bucket for raw audio (default `orbit-audio`)                |
-| `DASHBOARD_PASSWORD`        | Single password to unlock the dashboard                     |
-| `BOT_PORT`                  | Port for the bot's HTTP health endpoint (default `3001`)    |
+| Variable                    | Description                                                |
+| --------------------------- | ---------------------------------------------------------- |
+| `TELEGRAM_BOT_TOKEN`        | Token from @BotFather                                      |
+| `TELEGRAM_BOT_USERNAME`     | Bot username without @ — for the account-linking deep link |
+| `OPENAI_API_KEY`            | OpenAI key                                                 |
+| `OPENAI_TRANSCRIBE_MODEL`   | Defaults to `whisper-1`                                    |
+| `OPENAI_CHAT_MODEL`         | Defaults to `gpt-4o-mini`                                  |
+| `SUPABASE_URL`              | `https://<project>.supabase.co`                            |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-side only; bot + admin ops)       |
+| `SUPABASE_ANON_KEY`         | Anon key — dashboard uses it with the user session (RLS)   |
+| `SUPABASE_STORAGE_BUCKET`   | Bucket for raw audio (default `orbit-audio`)               |
+| `BOT_PORT`                  | Port for the bot's HTTP health endpoint (default `3001`)   |
 
 ## Running locally
 
@@ -87,13 +87,15 @@ bun run dashboard
 # → http://127.0.0.1:5173
 ```
 
-The dashboard is bound to `127.0.0.1` (localhost only) and gated behind
-`DASHBOARD_PASSWORD`. Do not expose it publicly without a real auth layer.
+The dashboard is gated behind Supabase Auth (email + password). Each user sees
+only their own data — Postgres RLS scopes every query by `user_id = auth.uid()`.
+Register at `/register`, then link the Telegram bot from the profile page.
 
 ## How it works
 
-1. **Capture.** You send a voice or text DM to your bot. The bot ignores anyone
-   whose Telegram user ID does not match `TELEGRAM_ALLOWED_USER_ID`.
+1. **Capture.** You send a voice or text DM to your bot. The bot only accepts
+   messages from a Telegram account linked to a dashboard user (via a one-time
+   code from the profile page); unlinked users are told how to connect.
 2. **Transcribe (voice only).** Audio is downloaded from Telegram, uploaded to
    Supabase Storage, then transcribed with Whisper.
 3. **Analyze.** The transcript goes to `gpt-4o-mini` with a strict JSON schema

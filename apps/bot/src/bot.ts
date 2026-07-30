@@ -1,36 +1,62 @@
-import { CATEGORIES, env } from '@orbit/shared'
-import { Telegraf } from 'telegraf'
+import {
+    CATEGORIES,
+    consumeTelegramLinkCode,
+    env,
+    getServiceClient,
+    linkTelegramUser,
+    resolveTelegramUser,
+} from '@orbit/shared'
+import { type Context, Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 
 import { categoryLabel, formatSaved } from './format.ts'
 import { log } from './log.ts'
 import { processText, processVoice } from './process.ts'
 
-export function createBot(): Telegraf {
-    const bot = new Telegraf(env.TELEGRAM_BOT_TOKEN)
+interface BotContext extends Context {
+    state: { userId?: string }
+}
 
-    // Single-user lock: silently ignore anyone but the configured user.
+export function createBot(): Telegraf<BotContext> {
+    const bot = new Telegraf<BotContext>(env.TELEGRAM_BOT_TOKEN)
+    const supabase = getServiceClient()
+
+    // Resolve the Telegram user to a linked account. Linked → carry the user id
+    // on ctx.state. Unlinked → only /start (to bind a code) is allowed through.
     bot.use(async (ctx, next) => {
-        const userId = ctx.from?.id
-        if (userId !== env.TELEGRAM_ALLOWED_USER_ID) {
-            log.warn(`Rejected message from unauthorized user ${userId}`)
+        const telegramId = ctx.from?.id
+        if (!telegramId) {
             return
         }
-        return next()
+        const userId = await resolveTelegramUser(supabase, telegramId)
+        if (userId) {
+            ctx.state.userId = userId
+            return next()
+        }
+        const text = ctx.message && 'text' in ctx.message ? ctx.message.text : ''
+        if (text.startsWith('/start')) {
+            return next()
+        }
+        await ctx.reply('Аккаунт не привязан. Открой дашборд → Профиль → Подключить Telegram и перейди по ссылке.')
     })
 
     bot.start(async (ctx) => {
-        await ctx.reply(
-            [
-                "👋 Hi! I'm Orbit — your voice-first idea inbox.",
-                '',
-                "Send me a *voice message* or *text* and I'll transcribe, categorize and save it.",
-                '',
-                'Commands:',
-                '/categories — список категорий',
-            ].join('\n'),
-            { parse_mode: 'Markdown' },
-        )
+        if (ctx.state.userId) {
+            await ctx.reply('👋 Аккаунт уже привязан. Присылай голос или текст.')
+            return
+        }
+        const code = ctx.message.text.split(' ').slice(1).join(' ').trim()
+        if (!code) {
+            await ctx.reply('Привет! Чтобы привязать аккаунт, зайди в дашборд → Профиль → Подключить Telegram.')
+            return
+        }
+        const userId = await consumeTelegramLinkCode(supabase, code)
+        if (!userId) {
+            await ctx.reply('Код не найден или уже использован. Сгенерируй новый в дашборде.')
+            return
+        }
+        await linkTelegramUser(supabase, userId, ctx.from.id)
+        await ctx.reply('✅ Аккаунт привязан. Присылай голос или текст — я сохраню в твой журнал.')
     })
 
     bot.command('categories', async (ctx) => {
@@ -51,6 +77,7 @@ export function createBot(): Telegraf {
             const ext = fileNameFromUrl(link.toString())
 
             const entry = await processVoice({
+                userId: ctx.state.userId!,
                 fileBytes: buf,
                 telegramFileName: ext,
                 telegramMessageId: ctx.message.message_id,
@@ -72,6 +99,7 @@ export function createBot(): Telegraf {
             const buf = await res.arrayBuffer()
 
             const entry = await processVoice({
+                userId: ctx.state.userId!,
                 fileBytes: buf,
                 telegramFileName: ctx.message.audio.file_name ?? fileNameFromUrl(link.toString()),
                 telegramMessageId: ctx.message.message_id,
@@ -89,6 +117,7 @@ export function createBot(): Telegraf {
         try {
             await ctx.sendChatAction('typing')
             const entry = await processText({
+                userId: ctx.state.userId!,
                 text,
                 telegramMessageId: ctx.message.message_id,
             })
