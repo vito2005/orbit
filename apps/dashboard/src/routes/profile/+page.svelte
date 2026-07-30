@@ -16,6 +16,7 @@
     const justSaved = $derived(page.url.searchParams.get('saved') === '1')
     const hoursSaved = $derived(page.url.searchParams.get('hours_saved') === '1')
     const northSaved = $derived(page.url.searchParams.get('north_saved') === '1')
+    const tgUnlinked = $derived(page.url.searchParams.get('tg_unlinked') === '1')
     const resumeAdded = $derived(page.url.searchParams.get('resume_added') === '1')
     const resumeUpdated = $derived(page.url.searchParams.get('resume_updated') === '1')
     const resumeDeleted = $derived(page.url.searchParams.get('resume_deleted') === '1')
@@ -51,11 +52,12 @@
     точнее будет план.
 </p>
 
-{#if justSaved || hoursSaved || northSaved || resumeAdded || resumeUpdated || resumeDeleted}
+{#if justSaved || hoursSaved || northSaved || tgUnlinked || resumeAdded || resumeUpdated || resumeDeleted}
     <p class={calloutReasoning}>
         {#if justSaved}Профиль сохранён.{/if}
         {#if hoursSaved}Бюджет времени сохранён.{/if}
         {#if northSaved}North stars сохранены.{/if}
+        {#if tgUnlinked}Telegram отвязан.{/if}
         {#if resumeAdded}Резюме добавлено.{/if}
         {#if resumeUpdated}Резюме обновлено.{/if}
         {#if resumeDeleted}Резюме удалено.{/if}
@@ -68,7 +70,18 @@
 <section class="mb-9 pt-1">
     <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">Telegram-бот</h2>
     {#if data.telegramLink}
-        <p class="text-[13px] text-muted">Бот привязан. Отправляй голосовые и текст — они попадут в твой журнал.</p>
+        <p class="mb-3 text-[13px] text-muted">
+            Бот привязан. Отправляй голосовые и текст — они попадут в твой журнал.
+        </p>
+        <form
+            method="POST"
+            action="?/unlinkTelegram"
+            onsubmit={(ev) => {
+                if (!confirm('Отвязать Telegram от этого аккаунта?')) ev.preventDefault()
+            }}
+        >
+            <button type="submit" class={btnSecondary}>Отвязать</button>
+        </form>
     {:else if tgLink}
         <p class="mb-3 text-[13px] text-muted">
             Открой ссылку в Telegram и нажми Start — это привяжет бота к твоему аккаунту. Ссылка одноразовая.

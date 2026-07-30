@@ -9,6 +9,7 @@ import {
     saveDailyHours,
     saveNorthStars,
     saveProfile,
+    unlinkTelegram,
     updateResume,
 } from '@orbit/shared'
 import { fail, redirect } from '@sveltejs/kit'
@@ -65,6 +66,10 @@ export const actions: Actions = {
     connectTelegram: async ({ locals }) => {
         const code = await createTelegramLinkCode(locals.supabase, locals.user!.id)
         throw redirect(303, `/profile?tg_code=${code}`)
+    },
+    unlinkTelegram: async ({ locals }) => {
+        await unlinkTelegram(locals.supabase, locals.user!.id)
+        throw redirect(303, '/profile?tg_unlinked=1')
     },
     uploadResume: async ({ request, locals }) => {
         const data = await request.formData()

@@ -418,11 +418,22 @@ export async function consumeTelegramLinkCode(client: SupabaseClient, code: stri
 }
 
 export async function linkTelegramUser(client: SupabaseClient, userId: string, telegramId: number): Promise<void> {
+    // Free this telegram from any prior account, then bind it to this user
+    // (replacing whatever telegram they had before). This is what makes
+    // relinking to a different account "just link again" from the bot.
+    await client.from('telegram_links').delete().eq('telegram_id', telegramId)
     const { error } = await client
         .from('telegram_links')
         .upsert({ user_id: userId, telegram_id: telegramId }, { onConflict: 'user_id' })
     if (error) {
         throw new Error(`DB link telegram failed: ${error.message}`)
+    }
+}
+
+export async function unlinkTelegram(client: SupabaseClient, userId: string): Promise<void> {
+    const { error } = await client.from('telegram_links').delete().eq('user_id', userId)
+    if (error) {
+        throw new Error(`DB unlink telegram failed: ${error.message}`)
     }
 }
 
