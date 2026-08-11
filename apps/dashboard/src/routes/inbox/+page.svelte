@@ -2,14 +2,23 @@
     import { SvelteURLSearchParams } from 'svelte/reactivity'
 
     import EntryEdit from '$lib/components/EntryEdit.svelte'
+    import { isArchived, isDone, isRemoved, removeEntry, toggleArchive, toggleDone } from '$lib/entries.svelte'
     import { categoryEmoji, formatRelative, priorityLabel } from '$lib/format'
-    import { btnPrimary, card, cardAction, cardActionDanger, chip, emptyBox } from '$lib/ui'
+    import { btnPrimary, card, cardAction, cardActionDanger, cardDone, chip, emptyBox } from '$lib/ui'
 
     import type { PageData } from './$types'
 
     const { data }: { data: PageData } = $props()
 
     const redirectTo = $derived(buildRedirectTo(data.filters))
+    // Drop a card as soon as it stops matching the current view — deleted, or
+    // moved to the other side of the archive filter — instead of reloading.
+    const visible = $derived(
+        data.entries.filter(
+            (entry) =>
+                !isRemoved(entry) && (data.filters.priority === 'archive' ? isArchived(entry) : !isArchived(entry)),
+        ),
+    )
 
     function buildRedirectTo(filters: { search: string; category: string; priority: string }): string {
         const params = new SvelteURLSearchParams()
@@ -47,13 +56,13 @@
     </p>
 {/if}
 
-{#if data.entries.length === 0}
+{#if visible.length === 0}
     <div class={emptyBox}>
         <p class="m-0 max-w-[44ch]">No entries yet. Send a voice or text to your Telegram bot to get started.</p>
     </div>
 {:else}
-    {#each data.entries as entry (entry.id)}
-        <article class={card}>
+    {#each visible as entry (entry.id)}
+        <article class={isDone(entry) ? cardDone : card}>
             <div class="mb-2 flex items-baseline justify-between gap-3">
                 <h3 class="m-0 font-serif text-[19px] font-medium leading-[1.24]">
                     <a href="/entries/{entry.id}" class="text-text hover:text-accent-hover hover:no-underline">
@@ -82,28 +91,23 @@
             {/if}
             <EntryEdit {entry} {redirectTo} />
             <div class="mt-4 flex gap-1.75 border-t border-border pt-3">
-                {#if entry.priority === 'archive'}
-                    <form method="POST" action="/entries/{entry.id}?/setPriority">
-                        <input type="hidden" name="priority" value="backlog" />
-                        <input type="hidden" name="redirectTo" value={redirectTo} />
-                        <button type="submit" class={cardAction}>Unarchive</button>
-                    </form>
-                {:else}
-                    <form method="POST" action="/entries/{entry.id}?/archive">
-                        <input type="hidden" name="redirectTo" value={redirectTo} />
-                        <button type="submit" class={cardAction}>Archive</button>
-                    </form>
-                {/if}
-                <form
-                    method="POST"
-                    action="/entries/{entry.id}?/delete"
-                    onsubmit={(ev) => {
-                        if (!confirm('Delete this entry permanently?')) ev.preventDefault()
+                <button type="button" class={cardAction} onclick={() => toggleDone(entry)}>
+                    {isDone(entry) ? '↩ В работу' : '✓ Готово'}
+                </button>
+                <button type="button" class={cardAction} onclick={() => toggleArchive(entry)}>
+                    {isArchived(entry) ? 'Unarchive' : 'Archive'}
+                </button>
+                <button
+                    type="button"
+                    class={cardActionDanger}
+                    onclick={() => {
+                        if (confirm('Delete this entry permanently?')) {
+                            removeEntry(entry)
+                        }
                     }}
                 >
-                    <input type="hidden" name="redirectTo" value={redirectTo} />
-                    <button type="submit" class={cardActionDanger}>Delete</button>
-                </form>
+                    Delete
+                </button>
             </div>
         </article>
     {/each}

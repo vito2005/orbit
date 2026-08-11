@@ -24,13 +24,24 @@ export const linkButton =
 export const chip =
     'inline-flex min-h-6.25 items-center rounded-full border border-border bg-surface-2 px-2.25 py-0.75 text-[11px] font-medium text-text-2'
 
-export const card =
-    "relative mb-3 overflow-hidden rounded-card border border-border bg-surface/88 p-4.5 shadow-soft transition duration-[160ms] before:absolute before:inset-y-0 before:left-0 before:w-0.75 before:bg-transparent before:transition-[background] before:duration-[160ms] before:content-[''] hover:-translate-y-px hover:border-border-strong hover:shadow-card hover:before:bg-accent md:px-5.5 md:py-5"
+// Split so the done variants can swap background/border without two competing
+// bg-* utilities in one class list — Tailwind resolves those by stylesheet
+// order, not by the order they appear in the string.
+const cardBase =
+    "relative mb-3 overflow-hidden rounded-card border p-4.5 shadow-soft transition duration-[160ms] before:absolute before:inset-y-0 before:left-0 before:w-0.75 before:bg-transparent before:transition-[background] before:duration-[160ms] before:content-[''] hover:-translate-y-px hover:shadow-card hover:before:bg-accent md:px-5.5 md:py-5"
+
+export const card = `${cardBase} border-border bg-surface/88 hover:border-border-strong`
+
+export const cardDone = `${cardBase} border-ok/40 bg-ok-soft hover:border-ok/60`
 
 export const hubList = 'm-0 list-none overflow-hidden rounded-card border border-border bg-surface/82 p-0 shadow-soft'
 
-export const hubRow =
-    'grid min-h-13.5 grid-cols-[64px_minmax(0,1fr)] items-center gap-3 border-b border-border px-3.5 py-2.5 transition-[background] duration-150 last:border-b-0 hover:bg-paper'
+const hubRowBase =
+    'grid min-h-13.5 grid-cols-[64px_minmax(0,1fr)] items-center gap-3 border-b border-border px-3.5 py-2.5 transition-[background] duration-150 last:border-b-0'
+
+export const hubRow = `${hubRowBase} hover:bg-paper`
+
+export const hubRowDone = `${hubRowBase} bg-ok-soft`
 
 export const hubTitle = 'min-w-0 truncate font-serif text-base font-medium hover:text-accent-hover hover:no-underline'
 

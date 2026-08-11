@@ -1,6 +1,8 @@
 <script lang="ts">
+    import { goto } from '$app/navigation'
     import { page } from '$app/state'
     import EntryEdit from '$lib/components/EntryEdit.svelte'
+    import { doneAt, isArchived, isDone, removeEntry, toggleArchive, toggleDone } from '$lib/entries.svelte'
     import { categoryEmoji, formatDate } from '$lib/format'
     import {
         btnDanger,
@@ -12,6 +14,7 @@
         chip,
         hubList,
         hubRow,
+        hubRowDone,
         hubTitle,
         linkButton,
     } from '$lib/ui'
@@ -25,7 +28,16 @@
     const suggestions = $derived(form && 'suggestions' in form ? form.suggestions : null)
     const needsContext = $derived(form && 'needsContext' in form ? form.needsContext : null)
     const contextSaved = $derived(page.url.searchParams.get('context_saved') === '1')
-    const doneSubtasks = $derived(subtasks.filter((s) => s.done_at !== null).length)
+    const doneSubtasks = $derived(subtasks.filter(isDone).length)
+
+    async function handleDelete() {
+        if (!confirm('Delete this entry permanently?')) {
+            return
+        }
+        if (await removeEntry(e)) {
+            await goto('/inbox')
+        }
+    }
 
     const detailSection = 'my-4 rounded-card border border-border bg-surface/82 p-4.5 shadow-soft md:px-5.5 md:py-5.25'
     const motivationSection =
@@ -37,25 +49,13 @@
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
     <a href="/inbox" class="text-[13px] text-text-2">← back to list</a>
     <div class="flex gap-2">
-        {#if e.priority === 'archive'}
-            <form method="POST" action="?/setPriority">
-                <input type="hidden" name="priority" value="backlog" />
-                <button type="submit" class={btnSecondary}>Unarchive</button>
-            </form>
-        {:else}
-            <form method="POST" action="?/archive">
-                <button type="submit" class={btnSecondary}>Archive</button>
-            </form>
-        {/if}
-        <form
-            method="POST"
-            action="?/delete"
-            onsubmit={(ev) => {
-                if (!confirm('Delete this entry permanently?')) ev.preventDefault()
-            }}
-        >
-            <button type="submit" class={btnDanger}>Delete</button>
-        </form>
+        <button type="button" class={isDone(e) ? btnSecondary : btnPrimary} onclick={() => toggleDone(e)}>
+            {isDone(e) ? '↩ Вернуть в работу' : '✓ Отметить выполненной'}
+        </button>
+        <button type="button" class={btnSecondary} onclick={() => toggleArchive(e)}>
+            {isArchived(e) ? 'Unarchive' : 'Archive'}
+        </button>
+        <button type="button" class={btnDanger} onclick={handleDelete}>Delete</button>
     </div>
 </div>
 
@@ -76,6 +76,9 @@
             &nbsp;·&nbsp; potential: {e.content_potential}/10
         {/if}
         &nbsp;·&nbsp; {formatDate(e.created_at)}
+        {#if isDone(e)}
+            &nbsp;·&nbsp; <span class="text-ok">✓ выполнено {formatDate(doneAt(e) as string)}</span>
+        {/if}
     </div>
     <EntryEdit entry={e} redirectTo="/entries/{e.id}" />
 
@@ -177,14 +180,20 @@
         {#if subtasks.length > 0}
             <ul class="{hubList} mb-3">
                 {#each subtasks as st (st.id)}
-                    <li class="{hubRow} {st.done_at !== null ? 'opacity-[0.58]' : ''}">
-                        <span class="w-5.5 text-center {st.done_at !== null ? 'text-ok' : 'text-muted'}">
-                            {st.done_at !== null ? '✓' : '○'}
-                        </span>
-                        <a
-                            href="/entries/{st.id}"
-                            class="{hubTitle} {st.done_at !== null ? 'text-muted line-through' : 'text-text'}"
+                    <li class={isDone(st) ? hubRowDone : hubRow}>
+                        <button
+                            type="button"
+                            aria-label={isDone(st) ? 'Вернуть в работу' : 'Отметить выполненной'}
+                            onclick={() => toggleDone(st)}
+                            class="cursor-pointer justify-self-center rounded-field border-0 bg-transparent px-2.5 py-1 text-base leading-none {isDone(
+                                st,
+                            )
+                                ? 'text-ok'
+                                : 'text-muted hover:text-accent-hover'}"
                         >
+                            {isDone(st) ? '✓' : '○'}
+                        </button>
+                        <a href="/entries/{st.id}" class="{hubTitle} {isDone(st) ? 'text-text-2' : 'text-text'}">
                             {st.title}
                         </a>
                     </li>

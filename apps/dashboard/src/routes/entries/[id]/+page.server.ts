@@ -1,8 +1,6 @@
 import {
-    archiveEntry,
     CATEGORIES,
     type Category,
-    deleteEntry,
     generateMotivation,
     getEntry,
     getProfile,
@@ -10,8 +8,6 @@ import {
     listResumes,
     listSubtasksOf,
     type NewEntry,
-    PRIORITIES,
-    type Priority,
     type SubtaskSuggestion,
     suggestSubtasks,
     updateEntry,
@@ -41,25 +37,6 @@ function safeRedirect(data: FormData, fallback: string): string {
 }
 
 export const actions: Actions = {
-    archive: async ({ params, request, locals }) => {
-        await archiveEntry(locals.supabase, params.id as string)
-        const data = await request.formData()
-        throw redirect(303, safeRedirect(data, '/inbox'))
-    },
-    delete: async ({ params, request, locals }) => {
-        await deleteEntry(locals.supabase, params.id as string)
-        const data = await request.formData()
-        throw redirect(303, safeRedirect(data, '/inbox'))
-    },
-    setPriority: async ({ params, request, locals }) => {
-        const data = await request.formData()
-        const priority = String(data.get('priority') ?? '')
-        if (!(PRIORITIES as readonly string[]).includes(priority)) {
-            return fail(400, { error: 'invalid priority' })
-        }
-        await updateEntry(locals.supabase, params.id as string, { priority: priority as Priority })
-        throw redirect(303, safeRedirect(data, `/entries/${params.id}`))
-    },
     setCategory: async ({ params, request, locals }) => {
         const data = await request.formData()
         const category = String(data.get('category') ?? '')

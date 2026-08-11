@@ -53,7 +53,9 @@ export default [
         },
     },
     {
-        files: ['**/*.svelte'],
+        // *.svelte.ts are rune-enabled modules — the svelte parser claims them,
+        // so it needs the TS parser nested inside or their types fail to parse.
+        files: ['**/*.svelte', '**/*.svelte.ts'],
         languageOptions: {
             parser: svelteParser,
             parserOptions: {
