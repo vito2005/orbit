@@ -77,6 +77,28 @@ export async function listEntries(
     return (data ?? []) as Entry[]
 }
 
+// Every entry the user has, paged past PostgREST's row cap. Used by the export,
+// which must never silently truncate someone's data.
+export async function listAllEntries(client: SupabaseClient): Promise<Entry[]> {
+    const pageSize = 1000
+    const all: Entry[] = []
+    for (let from = 0; ; from += pageSize) {
+        const { data, error } = await client
+            .from('entries')
+            .select('*')
+            .order('created_at', { ascending: true })
+            .range(from, from + pageSize - 1)
+        if (error) {
+            throw new Error(`DB export list failed: ${error.message}`)
+        }
+        const rows = (data ?? []) as Entry[]
+        all.push(...rows)
+        if (rows.length < pageSize) {
+            return all
+        }
+    }
+}
+
 export async function getEntry(client: SupabaseClient, id: string): Promise<Entry | null> {
     const { data, error } = await client.from('entries').select('*').eq('id', id).maybeSingle()
     if (error) throw new Error(`DB get failed: ${error.message}`)

@@ -81,3 +81,16 @@
         </div>
     </form>
 </section>
+
+<section class="mb-9 pt-1">
+    <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">Забрать свои данные</h2>
+    <p class="mb-3 text-[13px] text-muted">
+        Выгружаются все записи целиком — с полными транскриптами, а не только заголовками и кратким пересказом. Markdown
+        с промптом можно сразу вставить в любую AI-модель и попросить разобрать.
+    </p>
+    <div class="flex flex-wrap items-center gap-2.5">
+        <a href="/api/export?format=md&prompt=1" class={btnPrimary}>Markdown с промптом</a>
+        <a href="/api/export?format=md" class={btnSecondary}>Markdown</a>
+        <a href="/api/export?format=json" class={btnSecondary}>JSON</a>
+    </div>
+</section>
