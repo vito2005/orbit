@@ -14,6 +14,8 @@ import {
 } from '@orbit/shared'
 import { error, fail, redirect } from '@sveltejs/kit'
 
+import { safeRedirect } from '$lib/redirect'
+
 import type { Actions, PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -28,14 +30,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     return { entry, subtasks, parent }
 }
 
-function safeRedirect(data: FormData, fallback: string): string {
-    const r = String(data.get('redirectTo') ?? '')
-    if (r.startsWith('/') && !r.startsWith('//')) {
-        return r
-    }
-    return fallback
-}
-
 export const actions: Actions = {
     setCategory: async ({ params, request, locals }) => {
         const data = await request.formData()
@@ -44,7 +38,7 @@ export const actions: Actions = {
             return fail(400, { error: 'invalid category' })
         }
         await updateEntry(locals.supabase, params.id as string, { category: category as Category })
-        throw redirect(303, safeRedirect(data, `/entries/${params.id}`))
+        throw redirect(303, safeRedirect(data.get('redirectTo'), `/entries/${params.id}`))
     },
     suggestSplit: async ({ params, locals }) => {
         const entry = await getEntry(locals.supabase, params.id as string)

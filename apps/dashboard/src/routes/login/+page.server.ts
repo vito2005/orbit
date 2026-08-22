@@ -1,10 +1,12 @@
 import { fail, redirect } from '@sveltejs/kit'
 
+import { safeRedirect } from '$lib/redirect'
+
 import type { Actions, PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (locals.user) {
-        throw redirect(303, url.searchParams.get('next') ?? '/')
+        throw redirect(303, safeRedirect(url.searchParams.get('next'), '/'))
     }
     return {}
 }
@@ -18,6 +20,6 @@ export const actions: Actions = {
         if (error) {
             return fail(400, { error: 'Неверный email или пароль.', email })
         }
-        throw redirect(303, url.searchParams.get('next') ?? '/')
+        throw redirect(303, safeRedirect(url.searchParams.get('next'), '/'))
     },
 }
