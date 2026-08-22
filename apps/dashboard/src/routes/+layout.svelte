@@ -13,8 +13,6 @@
     const navItems = [
         { href: '/', label: 'Journal' },
         { href: '/inbox', label: 'Inbox' },
-        { href: '/strategy', label: 'Strategy' },
-        { href: '/week', label: 'Week' },
         { href: '/inbox?priority=archive', label: 'Archive' },
         { href: '/profile', label: 'Profile' },
     ]

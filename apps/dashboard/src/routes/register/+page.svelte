@@ -12,7 +12,7 @@
 >
     <div class="mb-8.5 w-fit"><OrbitBrand /></div>
     <h1 class="mb-1.75 font-serif text-[33px] font-medium tracking-[-0.03em]">Создать аккаунт</h1>
-    <p class="mb-7 text-text-2">Свой журнал, стратегия и план недели.</p>
+    <p class="mb-7 text-text-2">Скидывай идеи голосом или текстом — они не потеряются.</p>
     {#if form?.sent}
         <div class={calloutReasoning}>
             Письмо с подтверждением отправлено на <strong>{form.email}</strong>. Открой ссылку из письма, чтобы войти.

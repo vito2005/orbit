@@ -63,93 +63,16 @@ export type NewEntry = Omit<Entry, 'id' | 'user_id' | 'created_at' | 'done_at' |
 // so a patch can't touch id / user_id / the AI's original analysis.
 export type EntryPatch = Partial<Pick<Entry, 'priority' | 'category' | 'motivation' | 'extra_context' | 'done_at'>>
 
-// Mon-Sun calendar week — kept as context input for /strategy so the AI knows
-// where in the week the user is when reasoning about focus.
-export interface Sprint {
-    start: string
-    end: string
-    today: string
-    daysIn: number
-    daysLeft: number
-    label: string
-}
-
 export interface UserProfile {
     user_id: string
     about_me: string
-    daily_hours: number
-    north_stars: string
     updated_at: string
 }
 
-export type ProfilePatch = Partial<Pick<UserProfile, 'about_me' | 'daily_hours' | 'north_stars'>>
+export type ProfilePatch = Partial<Pick<UserProfile, 'about_me'>>
 
 export interface TelegramLink {
     user_id: string
     telegram_id: number
     created_at: string
-}
-
-export interface Resume {
-    id: string
-    label: string
-    content_text: string
-    created_at: string
-}
-
-export interface StrategyReport {
-    id: string
-    model: string
-    body: string
-    created_at: string
-    system_prompt: string
-    user_content: string
-}
-
-export interface WeekPlan {
-    id: string
-    model: string
-    body: string
-    week_start: string
-    created_at: string
-    system_prompt: string
-    user_content: string
-}
-
-export interface WeekPlanContext {
-    profile_about_me: string
-    north_stars: string
-    resumes: Array<{ label: string; content_text: string }>
-    daily_hours: number
-    week_label: string
-    week_days_left: number
-    latest_strategy: string | null
-    open_backlog: Array<{
-        title: string
-        category: string
-        age_days: number
-    }>
-}
-
-export interface StrategyContext {
-    profile_about_me: string
-    north_stars: string
-    resumes: Array<{ label: string; content_text: string }>
-    daily_hours: number
-    sprint_label: string
-    sprint_days_left: number
-    counts: {
-        backlog: number
-        stale_over_14_days: number
-        done_last_7_days: number
-        captured_last_7_days: number
-    }
-    recent_entries: Array<{
-        title: string
-        category: string
-        priority: string
-        created_at: string
-        done_at: string | null
-        parent_title: string | null
-    }>
 }

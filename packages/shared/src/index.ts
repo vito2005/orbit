@@ -1,5 +1,4 @@
 export * from './ai'
 export * from './env'
-export * from './sprint'
 export * from './supabase'
 export * from './types'

@@ -8,25 +8,20 @@
         btnDanger,
         btnPrimary,
         btnSecondary,
-        calloutError,
-        calloutNeeds,
         calloutReasoning,
         chip,
         hubList,
         hubRow,
         hubRowDone,
         hubTitle,
-        linkButton,
     } from '$lib/ui'
 
-    import type { ActionData, PageData } from './$types'
+    import type { PageData } from './$types'
 
-    const { data, form }: { data: PageData; form: ActionData } = $props()
+    const { data }: { data: PageData } = $props()
     const e = $derived(data.entry)
     const parent = $derived(data.parent)
     const subtasks = $derived(data.subtasks)
-    const suggestions = $derived(form && 'suggestions' in form ? form.suggestions : null)
-    const needsContext = $derived(form && 'needsContext' in form ? form.needsContext : null)
     const contextSaved = $derived(page.url.searchParams.get('context_saved') === '1')
     const doneSubtasks = $derived(subtasks.filter(isDone).length)
 
@@ -40,8 +35,6 @@
     }
 
     const detailSection = 'my-4 rounded-card border border-border bg-surface/82 p-4.5 shadow-soft md:px-5.5 md:py-5.25'
-    const motivationSection =
-        'my-4 rounded-card border border-accent/30 bg-surface/82 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-accent-soft)_86%,transparent),color-mix(in_srgb,var(--color-surface)_90%,transparent))] p-4.5 shadow-soft md:px-5.5 md:py-5.25'
     const detailH2 = 'mb-2.5 font-serif text-[17px] font-medium italic text-text-2'
     const detailBody = 'm-0 text-sm leading-[1.68] whitespace-pre-wrap text-text-2'
 </script>
@@ -82,29 +75,6 @@
     </div>
     <EntryEdit entry={e} redirectTo="/entries/{e.id}" />
 
-    <section class={motivationSection}>
-        <h2 class={detailH2}>Зачем мне это</h2>
-        {#if e.motivation}
-            <p class="m-0 font-serif text-[18px] leading-[1.55] text-text">{e.motivation}</p>
-            <div class="mt-3 flex flex-wrap items-center gap-2.5">
-                <form method="POST" action="?/generateMotivation">
-                    <button type="submit" class={btnSecondary}>Перегенерировать</button>
-                </form>
-                <form method="POST" action="?/clearMotivation">
-                    <button type="submit" class={linkButton}>очистить</button>
-                </form>
-            </div>
-        {:else}
-            <p class="mb-2 text-[13px] text-muted">
-                Пока пусто. Попроси AI связать задачу с твоими north stars и описать что ты получишь, если доведёшь до
-                конца.
-            </p>
-            <form method="POST" action="?/generateMotivation">
-                <button type="submit" class={btnPrimary}>AI: написать мотивацию</button>
-            </form>
-        {/if}
-    </section>
-
     {#if e.summary}
         <section class={detailSection}>
             <h2 class={detailH2}>Summary</h2>
@@ -138,8 +108,7 @@
             {/if}
         </h2>
         <p class="mb-2 text-xs text-muted">
-            Программа курса, ToC книги, brief задачи, ссылки, ТЗ. AI использует это при разбивке на подзадачи и при
-            мотивации.
+            Программа курса, ToC книги, brief задачи, ссылки, ТЗ — всё, что стоит держать рядом с записью.
         </p>
         {#if contextSaved}
             <p class={calloutReasoning}>Сохранено.</p>
@@ -166,17 +135,6 @@
             {/if}
         </h2>
 
-        {#if needsContext}
-            <div class={calloutNeeds}>
-                <p class="mb-1.5"><strong>AI просит больше контекста:</strong></p>
-                <p class="mb-1.5">{needsContext}</p>
-                <p class="mt-2 text-xs text-muted">
-                    ↑ Вставь это в поле «Контекст / источники» выше, сохрани, и нажми «AI: разбить на подзадачи» ещё
-                    раз.
-                </p>
-            </div>
-        {/if}
-
         {#if subtasks.length > 0}
             <ul class="{hubList} mb-3">
                 {#each subtasks as st (st.id)}
@@ -199,47 +157,8 @@
                     </li>
                 {/each}
             </ul>
-        {/if}
-
-        {#if suggestions}
-            <form method="POST" action="?/createSubtasks" class="mt-2.5 grid gap-2">
-                <p class="mb-2 text-xs text-muted">
-                    AI предложил {suggestions.length} подзадач. Сними галочки с лишних или подгенерируй ещё раз.
-                </p>
-                {#each suggestions as s (s.title)}
-                    <label
-                        class="flex cursor-pointer items-start gap-2.75 rounded-box border border-border bg-paper p-3 transition-colors duration-150 hover:border-accent hover:bg-surface"
-                    >
-                        <input
-                            type="checkbox"
-                            name="subtask"
-                            value={JSON.stringify(s)}
-                            class="mt-1 accent-accent"
-                            checked
-                        />
-                        <div>
-                            <div class="font-medium text-text">{s.title}</div>
-                            {#if s.next_action}
-                                <div class="my-2 font-serif text-[15px] italic leading-[1.4] text-accent-hover">
-                                    ↳ {s.next_action}
-                                </div>
-                            {/if}
-                        </div>
-                    </label>
-                {/each}
-                <div class="mt-3 flex flex-wrap items-center gap-2.5">
-                    <button type="submit" class={btnPrimary}>Создать выбранные</button>
-                </div>
-            </form>
         {:else}
-            <form method="POST" action="?/suggestSplit">
-                <button type="submit" class={btnSecondary}>
-                    {subtasks.length > 0 ? 'AI: предложить ещё подзадачи' : 'AI: разбить на подзадачи'}
-                </button>
-            </form>
-            {#if form && 'error' in form && form.error}
-                <p class="{calloutError} mt-2">{form.error}</p>
-            {/if}
+            <p class="m-0 text-[13px] text-muted">Подзадач нет.</p>
         {/if}
     </section>
 

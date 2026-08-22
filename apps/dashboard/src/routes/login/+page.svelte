@@ -12,7 +12,7 @@
 >
     <div class="mb-8.5 w-fit"><OrbitBrand /></div>
     <h1 class="mb-1.75 font-serif text-[33px] font-medium tracking-[-0.03em]">Вернуться в журнал</h1>
-    <p class="mb-7 text-text-2">Твои заметки, решения и следующий шаг.</p>
+    <p class="mb-7 text-text-2">Твои идеи, заметки и мысли — в одном месте.</p>
     {#if form?.error}
         <div class={calloutError}>{form.error}</div>
     {/if}

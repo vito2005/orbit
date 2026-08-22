@@ -1,17 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import { env } from './env'
-import type {
-    Entry,
-    EntryPatch,
-    NewEntry,
-    ProfilePatch,
-    Resume,
-    StrategyReport,
-    TelegramLink,
-    UserProfile,
-    WeekPlan,
-} from './types'
+import type { Entry, EntryPatch, NewEntry, ProfilePatch, TelegramLink, UserProfile } from './types'
 
 let cached: SupabaseClient | null = null
 
@@ -114,25 +104,6 @@ export async function deleteEntry(client: SupabaseClient, id: string): Promise<v
     if (error) throw new Error(`DB delete failed: ${error.message}`)
 }
 
-// Entries that have been open for more than N days. The strategy report counts
-// these so the user can archive aggressively (Bullet Journal migration rule:
-// if you keep moving it, kill it).
-export async function listStale(client: SupabaseClient, olderThanDays = 14, limit = 50): Promise<Entry[]> {
-    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString()
-    const { data, error } = await client
-        .from('entries')
-        .select('*')
-        .neq('priority', 'archive')
-        .is('done_at', null)
-        .lt('created_at', cutoff)
-        .order('created_at', { ascending: true })
-        .limit(limit)
-    if (error) {
-        throw new Error(`DB list stale failed: ${error.message}`)
-    }
-    return (data ?? []) as Entry[]
-}
-
 export async function updateEntry(client: SupabaseClient, id: string, patch: EntryPatch): Promise<void> {
     const { error } = await client.from('entries').update(patch).eq('id', id)
     if (error) throw new Error(`DB entry update failed: ${error.message}`)
@@ -150,66 +121,15 @@ export async function listSubtasksOf(client: SupabaseClient, parentId: string): 
     return (data ?? []) as Entry[]
 }
 
-export interface SubtaskCount {
-    total: number
-    done: number
-}
-
-export async function getParentTitles(client: SupabaseClient, entries: Entry[]): Promise<Record<string, string>> {
-    const parentIds = [...new Set(entries.map((e) => e.parent_id).filter((id): id is string => id !== null))]
-    if (parentIds.length === 0) {
-        return {}
-    }
-    const { data, error } = await client.from('entries').select('id, title').in('id', parentIds)
-    if (error) {
-        throw new Error(`DB parent titles failed: ${error.message}`)
-    }
-    const map: Record<string, string> = {}
-    for (const row of data ?? []) {
-        const r = row as { id: string; title: string }
-        map[r.id] = r.title
-    }
-    return map
-}
-
-export async function countSubtasksByParent(
-    client: SupabaseClient,
-    parentIds: string[],
-): Promise<Map<string, SubtaskCount>> {
-    const result = new Map<string, SubtaskCount>()
-    if (parentIds.length === 0) {
-        return result
-    }
-    const { data, error } = await client.from('entries').select('parent_id, done_at').in('parent_id', parentIds)
-    if (error) {
-        throw new Error(`DB subtask counts failed: ${error.message}`)
-    }
-    for (const row of data ?? []) {
-        const r = row as { parent_id: string; done_at: string | null }
-        const cur = result.get(r.parent_id) ?? { total: 0, done: 0 }
-        cur.total++
-        if (r.done_at !== null) {
-            cur.done++
-        }
-        result.set(r.parent_id, cur)
-    }
-    return result
-}
-
 export async function getProfile(client: SupabaseClient): Promise<UserProfile> {
-    const { data, error } = await client
-        .from('user_profile')
-        .select('user_id, about_me, daily_hours, north_stars, updated_at')
-        .maybeSingle()
+    const { data, error } = await client.from('user_profile').select('user_id, about_me, updated_at').maybeSingle()
     if (error) {
         throw new Error(`DB profile get failed: ${error.message}`)
     }
     if (!data) {
-        return { user_id: '', about_me: '', daily_hours: 1, north_stars: '', updated_at: new Date().toISOString() }
+        return { user_id: '', about_me: '', updated_at: new Date().toISOString() }
     }
-    const row = data as UserProfile
-    // Postgres `numeric` can arrive as a string — normalize so the typed number is honest.
-    return { ...row, daily_hours: Number(row.daily_hours) || 1 }
+    return data as UserProfile
 }
 
 export async function saveProfile(client: SupabaseClient, patch: ProfilePatch): Promise<void> {
@@ -221,64 +141,6 @@ export async function saveProfile(client: SupabaseClient, patch: ProfilePatch): 
     }
 }
 
-export async function listResumes(client: SupabaseClient): Promise<Resume[]> {
-    const { data, error } = await client.from('resumes').select('*').order('created_at', { ascending: false })
-    if (error) {
-        throw new Error(`DB list resumes failed: ${error.message}`)
-    }
-    return (data ?? []) as Resume[]
-}
-
-export async function addResume(client: SupabaseClient, args: { label: string; contentText: string }): Promise<Resume> {
-    const { data, error } = await client
-        .from('resumes')
-        .insert({ label: args.label, content_text: args.contentText })
-        .select()
-        .single()
-    if (error) {
-        throw new Error(`DB add resume failed: ${error.message}`)
-    }
-    return data as Resume
-}
-
-export async function deleteResume(client: SupabaseClient, id: string): Promise<void> {
-    const { error } = await client.from('resumes').delete().eq('id', id)
-    if (error) {
-        throw new Error(`DB delete resume failed: ${error.message}`)
-    }
-}
-
-export async function updateResume(
-    client: SupabaseClient,
-    id: string,
-    args: { label?: string; contentText?: string },
-): Promise<void> {
-    const patch: Record<string, unknown> = {}
-    if (args.label !== undefined) {
-        patch.label = args.label
-    }
-    if (args.contentText !== undefined) {
-        patch.content_text = args.contentText
-    }
-    if (Object.keys(patch).length === 0) {
-        return
-    }
-    const { error } = await client.from('resumes').update(patch).eq('id', id)
-    if (error) {
-        throw new Error(`DB update resume failed: ${error.message}`)
-    }
-}
-
-export async function countOpenInPriority(client: SupabaseClient, priority: string): Promise<number> {
-    const { count, error } = await client
-        .from('entries')
-        .select('id', { count: 'exact', head: true })
-        .eq('priority', priority)
-        .is('done_at', null)
-    if (error) throw new Error(`DB count failed: ${error.message}`)
-    return count ?? 0
-}
-
 export async function listRecent(client: SupabaseClient, limit = 5): Promise<Entry[]> {
     const { data, error } = await client
         .from('entries')
@@ -288,77 +150,6 @@ export async function listRecent(client: SupabaseClient, limit = 5): Promise<Ent
         .limit(limit)
     if (error) throw new Error(`DB list recent failed: ${error.message}`)
     return (data ?? []) as Entry[]
-}
-
-export async function saveStrategyReport(
-    client: SupabaseClient,
-    args: {
-        model: string
-        body: string
-        system_prompt: string
-        user_content: string
-    },
-): Promise<StrategyReport> {
-    const { data, error } = await client.from('strategy_reports').insert(args).select().single()
-    if (error) {
-        throw new Error(`DB strategy save failed: ${error.message}`)
-    }
-    return data as StrategyReport
-}
-
-export async function listStrategyReports(client: SupabaseClient, limit = 10): Promise<StrategyReport[]> {
-    const { data, error } = await client
-        .from('strategy_reports')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit)
-    if (error) {
-        throw new Error(`DB list strategy failed: ${error.message}`)
-    }
-    return (data ?? []) as StrategyReport[]
-}
-
-export async function deleteStrategyReport(client: SupabaseClient, id: string): Promise<void> {
-    const { error } = await client.from('strategy_reports').delete().eq('id', id)
-    if (error) {
-        throw new Error(`DB delete strategy failed: ${error.message}`)
-    }
-}
-
-export async function saveWeekPlan(
-    client: SupabaseClient,
-    args: {
-        model: string
-        body: string
-        week_start: string
-        system_prompt: string
-        user_content: string
-    },
-): Promise<WeekPlan> {
-    const { data, error } = await client.from('weekly_plans').insert(args).select().single()
-    if (error) {
-        throw new Error(`DB week plan save failed: ${error.message}`)
-    }
-    return data as WeekPlan
-}
-
-export async function listWeekPlans(client: SupabaseClient, limit = 10): Promise<WeekPlan[]> {
-    const { data, error } = await client
-        .from('weekly_plans')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit)
-    if (error) {
-        throw new Error(`DB list week plans failed: ${error.message}`)
-    }
-    return (data ?? []) as WeekPlan[]
-}
-
-export async function deleteWeekPlan(client: SupabaseClient, id: string): Promise<void> {
-    const { error } = await client.from('weekly_plans').delete().eq('id', id)
-    if (error) {
-        throw new Error(`DB delete week plan failed: ${error.message}`)
-    }
 }
 
 // --- Telegram account linking ---------------------------------------------

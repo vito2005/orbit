@@ -11,8 +11,7 @@
     "dependencies": {
         "@orbit/shared": "workspace:*",
         "@supabase/ssr": "^0.12.4",
-        "@supabase/supabase-js": "^2.106.1",
-        "unpdf": "^1.6.2"
+        "@supabase/supabase-js": "^2.106.1"
     },
     "devDependencies": {
         "@sveltejs/adapter-node": "^5.5.4",
