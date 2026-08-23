@@ -8,7 +8,7 @@
 
 alter table public.user_profile
   add column if not exists categories text[] not null
-  default array['work', 'personal', 'family', 'health', 'money', 'content', 'ideas', 'random'];
+  default array['работа', 'личное', 'семья', 'здоровье', 'деньги', 'контент', 'идеи', 'разное'];
 
 update public.user_profile
 set categories = array['work', '3d', 'content', 'standup', 'family', 'money', 'health', 'personal', 'random'];

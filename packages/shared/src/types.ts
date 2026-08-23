@@ -1,14 +1,14 @@
 // Categories are per-user (user_profile.categories). This list only seeds a new
 // account and acts as the fallback when a profile row is missing.
 export const DEFAULT_CATEGORIES = [
-    'work',
-    'personal',
-    'family',
-    'health',
-    'money',
-    'content',
-    'ideas',
-    'random',
+    'работа',
+    'личное',
+    'семья',
+    'здоровье',
+    'деньги',
+    'контент',
+    'идеи',
+    'разное',
 ] as const
 
 // Not a union: the valid set is whatever the owner configured.

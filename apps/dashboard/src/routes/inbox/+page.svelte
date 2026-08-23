@@ -42,7 +42,7 @@
     class="mb-6 grid grid-cols-1 gap-2 rounded-box border border-border bg-paper/80 p-2.5 sm:grid-cols-[minmax(200px,1fr)_auto_auto_auto_auto]"
     method="GET"
 >
-    <input type="search" name="q" placeholder="Search title, summary, transcript…" value={data.filters.search} />
+    <input type="search" name="q" placeholder="Поиск по заголовку, тексту, транскрипту…" value={data.filters.search} />
     <select name="category">
         <option value="">Все категории</option>
         {#each data.categories as cat (cat)}
@@ -69,7 +69,7 @@
     {#if data.filters.priority}
         <input type="hidden" name="priority" value={data.filters.priority} />
     {/if}
-    <button type="submit" class={btnPrimary}>Filter</button>
+    <button type="submit" class={btnPrimary}>Найти</button>
 </form>
 
 {#if data.filters.priority || data.filters.tag || data.filters.done}
@@ -84,7 +84,7 @@
 
 {#if visible.length === 0}
     <div class={emptyBox}>
-        <p class="m-0 max-w-[44ch]">No entries yet. Send a voice or text to your Telegram bot to get started.</p>
+        <p class="m-0 max-w-[44ch]">Пока пусто. Пришли голосовое или текст в Telegram-бота — запись появится здесь.</p>
     </div>
 {:else}
     {#each visible as entry (entry.id)}
@@ -124,18 +124,18 @@
                     {isDone(entry) ? '↩ В работу' : '✓ Готово'}
                 </button>
                 <button type="button" class={cardAction} onclick={() => toggleArchive(entry)}>
-                    {isArchived(entry) ? 'Unarchive' : 'Archive'}
+                    {isArchived(entry) ? 'Из архива' : 'В архив'}
                 </button>
                 <button
                     type="button"
                     class={cardActionDanger}
                     onclick={() => {
-                        if (confirm('Delete this entry permanently?')) {
+                        if (confirm('Удалить запись навсегда?')) {
                             removeEntry(entry)
                         }
                     }}
                 >
-                    Delete
+                    Удалить
                 </button>
             </div>
         </article>

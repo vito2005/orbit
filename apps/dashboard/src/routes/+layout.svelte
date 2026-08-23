@@ -11,9 +11,9 @@
     const isAuthPage = $derived(page.url.pathname === '/login' || page.url.pathname === '/register')
 
     const navItems = [
-        { href: '/inbox', label: 'Inbox' },
-        { href: '/inbox?priority=archive', label: 'Archive' },
-        { href: '/profile', label: 'Profile' },
+        { href: '/inbox', label: 'Входящие' },
+        { href: '/inbox?priority=archive', label: 'Архив' },
+        { href: '/profile', label: 'Профиль' },
     ]
 
     function isActive(href: string): boolean {

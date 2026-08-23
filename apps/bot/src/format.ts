@@ -1,6 +1,16 @@
 import type { Entry } from '@orbit/shared'
 
+// Both sets on purpose: Russian names seed new accounts, the English ones are
+// what existing entries were classified with and must keep their icon.
 const CATEGORY_EMOJI: Record<string, string> = {
+    работа: '💻',
+    личное: '🧠',
+    семья: '👨‍👩‍👧',
+    здоровье: '🏃',
+    деньги: '💰',
+    контент: '🎬',
+    идеи: '💡',
+    разное: '🌀',
     work: '💻',
     '3d': '🎨',
     content: '🎬',
@@ -18,25 +28,18 @@ export function categoryLabel(c: string): string {
 }
 
 export function formatSaved(entry: Entry): string {
-    const lines = ['Saved ✅', `*Title:* ${escape(entry.title)}`, `*Category:* ${categoryLabel(entry.category)}`]
+    const lines = [
+        'Сохранено ✅',
+        `*Заголовок:* ${escape(entry.title)}`,
+        `*Категория:* ${categoryLabel(entry.category)}`,
+    ]
     if (entry.next_action) {
-        lines.push(`*Next action:* ${escape(entry.next_action)}`)
+        lines.push(`*Следующий шаг:* ${escape(entry.next_action)}`)
     }
     if (entry.tags.length > 0) {
-        lines.push(`*Tags:* ${entry.tags.map((t) => `#${escape(t.replace(/\s+/g, '_'))}`).join(' ')}`)
+        lines.push(`*Теги:* ${entry.tags.map((t) => `#${escape(t.replace(/\s+/g, '_'))}`).join(' ')}`)
     }
     return lines.join('\n')
-}
-
-export function formatEntryShort(entry: Entry): string {
-    const head = `${categoryLabel(entry.category)} *${escape(entry.title)}*`
-    const action = entry.next_action ? `\n  ↳ ${escape(entry.next_action)}` : ''
-    return `${head}${action}`
-}
-
-export function formatList(entries: Entry[], emptyMsg: string): string {
-    if (entries.length === 0) return emptyMsg
-    return entries.map((e) => formatEntryShort(e)).join('\n\n')
 }
 
 // Telegram MarkdownV1 — escape only the characters that break parsing

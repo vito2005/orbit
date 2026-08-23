@@ -1,4 +1,14 @@
+// Both sets on purpose: Russian names seed new accounts, the English ones are
+// what existing entries were classified with and must keep their icon.
 const CATEGORY_EMOJI: Record<string, string> = {
+    работа: '💻',
+    личное: '🧠',
+    семья: '👨‍👩‍👧',
+    здоровье: '🏃',
+    деньги: '💰',
+    контент: '🎬',
+    идеи: '💡',
+    разное: '🌀',
     work: '💻',
     '3d': '🎨',
     content: '🎬',
@@ -12,8 +22,20 @@ const CATEGORY_EMOJI: Record<string, string> = {
 }
 
 const PRIORITY_LABEL: Record<string, string> = {
-    backlog: '🗂 backlog',
-    archive: '📦 archive',
+    backlog: '🗂 бэклог',
+    archive: '📦 архив',
+}
+
+// Energy is stored as low/medium/high — an enum the DB and the AI agree on — so
+// it is translated on the way out rather than in the data.
+const ENERGY_LABEL: Record<string, string> = {
+    low: 'низкая',
+    medium: 'средняя',
+    high: 'высокая',
+}
+
+export function energyLabel(e: string): string {
+    return ENERGY_LABEL[e] ?? e
 }
 
 export function categoryEmoji(c: string): string {

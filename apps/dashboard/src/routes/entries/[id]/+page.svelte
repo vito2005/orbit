@@ -2,7 +2,7 @@
     import { goto } from '$app/navigation'
     import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { doneAt, isArchived, isDone, removeEntry, toggleArchive, toggleDone } from '$lib/entries.svelte'
-    import { categoryEmoji, formatDate } from '$lib/format'
+    import { categoryEmoji, energyLabel, formatDate } from '$lib/format'
     import { btnDanger, btnPrimary, btnSecondary, chip } from '$lib/ui'
 
     import type { PageData } from './$types'
@@ -11,7 +11,7 @@
     const e = $derived(data.entry)
 
     async function handleDelete() {
-        if (!confirm('Delete this entry permanently?')) {
+        if (!confirm('Удалить запись навсегда?')) {
             return
         }
         if (await removeEntry(e)) {
@@ -25,15 +25,15 @@
 </script>
 
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-    <a href="/inbox" class="text-[13px] text-text-2">← back to list</a>
+    <a href="/inbox" class="text-[13px] text-text-2">← к списку</a>
     <div class="flex gap-2">
         <button type="button" class={isDone(e) ? btnSecondary : btnPrimary} onclick={() => toggleDone(e)}>
             {isDone(e) ? '↩ Вернуть в работу' : '✓ Отметить выполненной'}
         </button>
         <button type="button" class={btnSecondary} onclick={() => toggleArchive(e)}>
-            {isArchived(e) ? 'Unarchive' : 'Archive'}
+            {isArchived(e) ? 'Вернуть из архива' : 'В архив'}
         </button>
-        <button type="button" class={btnDanger} onclick={handleDelete}>Delete</button>
+        <button type="button" class={btnDanger} onclick={handleDelete}>Удалить</button>
     </div>
 </div>
 
@@ -43,10 +43,10 @@
         {e.title}
     </h1>
     <div class="mb-3 font-mono text-[11px] leading-[1.8] tabular-nums text-muted">
-        {e.type === 'voice' ? '🎤 voice' : '📝 text'}
-        &nbsp;·&nbsp; energy: {e.energy}
+        {e.type === 'voice' ? '🎤 голосовая' : '📝 текст'}
+        &nbsp;·&nbsp; энергия: {energyLabel(e.energy)}
         {#if e.content_potential !== null}
-            &nbsp;·&nbsp; potential: {e.content_potential}/10
+            &nbsp;·&nbsp; потенциал: {e.content_potential}/10
         {/if}
         &nbsp;·&nbsp; {formatDate(e.created_at)}
         {#if isDone(e)}
@@ -57,21 +57,21 @@
 
     {#if e.summary}
         <section class={detailSection}>
-            <h2 class={detailH2}>Summary</h2>
+            <h2 class={detailH2}>Кратко</h2>
             <p class={detailBody}>{e.summary}</p>
         </section>
     {/if}
 
     {#if e.next_action}
         <section class={detailSection}>
-            <h2 class={detailH2}>Next action</h2>
+            <h2 class={detailH2}>Следующий шаг</h2>
             <p class={detailBody}>{e.next_action}</p>
         </section>
     {/if}
 
     {#if e.tags.length > 0}
         <section class={detailSection}>
-            <h2 class={detailH2}>Tags</h2>
+            <h2 class={detailH2}>Теги</h2>
             <div class="flex flex-wrap gap-1.5">
                 {#each e.tags as tag (tag)}
                     <span class={chip}>#{tag}</span>
@@ -82,11 +82,11 @@
 
     {#if e.type === 'voice'}
         <section class={detailSection}>
-            <h2 class={detailH2}>Audio</h2>
+            <h2 class={detailH2}>Аудио</h2>
             {#if e.original_audio_url}
                 <audio controls src={e.original_audio_url} class="w-full"></audio>
                 <p class="mt-2 text-xs">
-                    <a href={e.original_audio_url} target="_blank" rel="noopener">Open file</a>
+                    <a href={e.original_audio_url} target="_blank" rel="noopener">Открыть файл</a>
                 </p>
             {:else}
                 <p class="m-0 text-[13px] text-muted">
@@ -97,7 +97,7 @@
     {/if}
 
     <section class={detailSection}>
-        <h2 class={detailH2}>Transcript</h2>
+        <h2 class={detailH2}>Транскрипт</h2>
         <pre class="m-0 font-sans text-sm leading-[1.68] whitespace-pre-wrap text-text-2">{e.transcript}</pre>
     </section>
 </div>
