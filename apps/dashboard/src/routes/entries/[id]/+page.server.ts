@@ -27,11 +27,4 @@ export const actions: Actions = {
         await updateEntry(locals.supabase, params.id as string, { category: category as Category })
         throw redirect(303, safeRedirect(data.get('redirectTo'), `/entries/${params.id}`))
     },
-    setExtraContext: async ({ params, request, locals }) => {
-        const data = await request.formData()
-        const raw = String(data.get('extra_context') ?? '').trim()
-        const value = raw.length > 0 ? raw : null
-        await updateEntry(locals.supabase, params.id as string, { extra_context: value })
-        throw redirect(303, `/entries/${params.id}?context_saved=1`)
-    },
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
     import OrbitBrand from '$lib/components/OrbitBrand.svelte'
+    import PasswordInput from '$lib/components/PasswordInput.svelte'
     import { btnPrimary, calloutError, calloutReasoning } from '$lib/ui'
 
     import type { ActionData } from './$types'
@@ -34,15 +35,11 @@
                 required
             />
             <label for="register-password" class="text-xs font-semibold text-text-2">Пароль</label>
-            <input
+            <PasswordInput
                 id="register-password"
-                class="mb-1"
-                type="password"
-                name="password"
                 placeholder="Минимум 6 символов"
                 autocomplete="new-password"
-                minlength="6"
-                required
+                minlength={6}
             />
             <button type="submit" class="{btnPrimary} min-h-11 w-full">Зарегистрироваться</button>
         </form>

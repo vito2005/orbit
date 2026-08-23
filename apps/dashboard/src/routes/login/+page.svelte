@@ -1,5 +1,6 @@
 <script lang="ts">
     import OrbitBrand from '$lib/components/OrbitBrand.svelte'
+    import PasswordInput from '$lib/components/PasswordInput.svelte'
     import { btnPrimary, calloutError } from '$lib/ui'
 
     import type { ActionData } from './$types'
@@ -29,15 +30,7 @@
             required
         />
         <label for="login-password" class="text-xs font-semibold text-text-2">Пароль</label>
-        <input
-            id="login-password"
-            class="mb-1"
-            type="password"
-            name="password"
-            placeholder="Пароль"
-            autocomplete="current-password"
-            required
-        />
+        <PasswordInput id="login-password" placeholder="Пароль" autocomplete="current-password" />
         <button type="submit" class="{btnPrimary} min-h-11 w-full">Войти</button>
     </form>
     <p class="mt-5 text-center text-[13px] text-text-2">

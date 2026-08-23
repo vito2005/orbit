@@ -41,9 +41,6 @@ function formatEntry(entry: Entry, index: number): string {
     if (entry.summary) {
         parts.push(`**Кратко:** ${entry.summary}`, '')
     }
-    if (entry.extra_context) {
-        parts.push('**Контекст:**', '', entry.extra_context, '')
-    }
     // The whole point of the export: the untouched transcript, not the AI's summary.
     parts.push('**Транскрипт:**', '', entry.transcript, '')
     return parts.join('\n')

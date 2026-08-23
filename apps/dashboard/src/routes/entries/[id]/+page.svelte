@@ -1,20 +1,9 @@
 <script lang="ts">
     import { goto } from '$app/navigation'
-    import { page } from '$app/state'
     import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { doneAt, isArchived, isDone, removeEntry, toggleArchive, toggleDone } from '$lib/entries.svelte'
     import { categoryEmoji, formatDate } from '$lib/format'
-    import {
-        btnDanger,
-        btnPrimary,
-        btnSecondary,
-        calloutReasoning,
-        chip,
-        hubList,
-        hubRow,
-        hubRowDone,
-        hubTitle,
-    } from '$lib/ui'
+    import { btnDanger, btnPrimary, btnSecondary, chip, hubList, hubRow, hubRowDone, hubTitle } from '$lib/ui'
 
     import type { PageData } from './$types'
 
@@ -22,7 +11,6 @@
     const e = $derived(data.entry)
     const parent = $derived(data.parent)
     const subtasks = $derived(data.subtasks)
-    const contextSaved = $derived(page.url.searchParams.get('context_saved') === '1')
     const doneSubtasks = $derived(subtasks.filter(isDone).length)
 
     async function handleDelete() {
@@ -99,33 +87,6 @@
             </div>
         </section>
     {/if}
-
-    <section class={detailSection}>
-        <h2 class={detailH2}>
-            Контекст / источники
-            {#if e.extra_context && e.extra_context.length > 0}
-                <span class="font-normal text-muted">({e.extra_context.length} символов)</span>
-            {/if}
-        </h2>
-        <p class="mb-2 text-xs text-muted">
-            Программа курса, ToC книги, brief задачи, ссылки, ТЗ — всё, что стоит держать рядом с записью.
-        </p>
-        {#if contextSaved}
-            <p class={calloutReasoning}>Сохранено.</p>
-        {/if}
-        <form method="POST" action="?/setExtraContext">
-            <textarea
-                name="extra_context"
-                rows="8"
-                class="min-h-75"
-                placeholder="Вставь сюда программу курса, brief задачи, ссылки или ТЗ. AI будет использовать этот контекст."
-                >{e.extra_context ?? ''}</textarea
-            >
-            <div class="mt-3 flex flex-wrap items-center gap-2.5">
-                <button type="submit" class={btnSecondary}>Сохранить контекст</button>
-            </div>
-        </form>
-    </section>
 
     <section class={detailSection}>
         <h2 class={detailH2}>
