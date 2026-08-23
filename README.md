@@ -60,18 +60,19 @@ cp .env.example .env
 
 ### Environment variables
 
-| Variable                    | Description                                                |
-| --------------------------- | ---------------------------------------------------------- |
-| `TELEGRAM_BOT_TOKEN`        | Token from @BotFather                                      |
-| `TELEGRAM_BOT_USERNAME`     | Bot username without @ — for the account-linking deep link |
-| `OPENAI_API_KEY`            | OpenAI key                                                 |
-| `OPENAI_TRANSCRIBE_MODEL`   | Defaults to `whisper-1`                                    |
-| `OPENAI_CHAT_MODEL`         | Defaults to `gpt-4o-mini`                                  |
-| `SUPABASE_URL`              | `https://<project>.supabase.co`                            |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-side only; bot + admin ops)       |
-| `SUPABASE_ANON_KEY`         | Anon key — dashboard uses it with the user session (RLS)   |
-| `SUPABASE_STORAGE_BUCKET`   | Bucket for raw audio (default `orbit-audio`)               |
-| `BOT_PORT`                  | Port for the bot's HTTP health endpoint (default `3001`)   |
+| Variable                    | Description                                                 |
+| --------------------------- | ----------------------------------------------------------- |
+| `TELEGRAM_BOT_TOKEN`        | Token from @BotFather                                       |
+| `TELEGRAM_BOT_USERNAME`     | Bot username without @ — for the account-linking deep link  |
+| `TELEGRAM_ADMIN_CHAT_ID`    | Optional — your Telegram id; gets alerts on capture failure |
+| `OPENAI_API_KEY`            | OpenAI key                                                  |
+| `OPENAI_TRANSCRIBE_MODEL`   | Defaults to `whisper-1`                                     |
+| `OPENAI_CHAT_MODEL`         | Defaults to `gpt-4o-mini`                                   |
+| `SUPABASE_URL`              | `https://<project>.supabase.co`                             |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-side only; bot + admin ops)        |
+| `SUPABASE_ANON_KEY`         | Anon key — dashboard uses it with the user session (RLS)    |
+| `SUPABASE_STORAGE_BUCKET`   | Bucket for raw audio (default `orbit-audio`)                |
+| `BOT_PORT`                  | Port for the bot's HTTP health endpoint (default `3001`)    |
 
 ## Running locally
 

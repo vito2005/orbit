@@ -20,6 +20,11 @@ export const env = {
     get TELEGRAM_BOT_USERNAME() {
         return optional('TELEGRAM_BOT_USERNAME', '')
     },
+    // Numeric Telegram chat id of the operator. When set, the bot forwards
+    // capture failures here — Railway logs are not somewhere anyone looks.
+    get TELEGRAM_ADMIN_CHAT_ID() {
+        return optional('TELEGRAM_ADMIN_CHAT_ID', '')
+    },
     get OPENAI_API_KEY() {
         return required('OPENAI_API_KEY')
     },

@@ -17,6 +17,39 @@ interface BotContext extends Context {
     state: { userId?: string }
 }
 
+// A capture that fails is a thought the user thinks was saved. Tell them plainly
+// what to do — the voice message is still sitting in the chat — and tell the
+// operator separately, because nobody reads Railway logs.
+const RETRY_HINT: Record<string, string> = {
+    voice: '⚠️ Не смог обработать голосовое. Оно осталось в чате — пришли ещё раз.',
+    audio: '⚠️ Не смог обработать аудио. Оно осталось в чате — пришли ещё раз.',
+    text: '⚠️ Не смог обработать сообщение. Пришли ещё раз.',
+}
+
+async function reportFailure(bot: Telegraf<BotContext>, ctx: BotContext, kind: string, err: unknown): Promise<void> {
+    log.error(`${kind} failed`, err)
+    try {
+        await ctx.reply(RETRY_HINT[kind] ?? RETRY_HINT.text)
+    } catch (replyErr) {
+        log.error('failure reply failed', replyErr)
+    }
+
+    const adminChatId = env.TELEGRAM_ADMIN_CHAT_ID
+    if (!adminChatId) {
+        return
+    }
+    try {
+        // Deliberately no transcript or message text — the operator needs to know
+        // something broke and for whom, not what the person was saying.
+        await bot.telegram.sendMessage(
+            adminChatId,
+            `🔴 Сбой захвата (${kind})\nuser: ${ctx.state.userId ?? 'не привязан'}\ntg: ${ctx.from?.id ?? '?'}\n\n${(err as Error).message}`,
+        )
+    } catch (notifyErr) {
+        log.error('admin notify failed', notifyErr)
+    }
+}
+
 export function createBot(): Telegraf<BotContext> {
     const bot = new Telegraf<BotContext>(env.TELEGRAM_BOT_TOKEN)
     const supabase = getServiceClient()
@@ -84,8 +117,7 @@ export function createBot(): Telegraf<BotContext> {
             })
             await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown' })
         } catch (err) {
-            log.error('voice failed', err)
-            await ctx.reply(`⚠ Failed to process voice: ${(err as Error).message}`)
+            await reportFailure(bot, ctx, 'voice', err)
         }
     })
 
@@ -106,8 +138,7 @@ export function createBot(): Telegraf<BotContext> {
             })
             await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown' })
         } catch (err) {
-            log.error('audio failed', err)
-            await ctx.reply(`⚠ Failed to process audio: ${(err as Error).message}`)
+            await reportFailure(bot, ctx, 'audio', err)
         }
     })
 
@@ -123,8 +154,7 @@ export function createBot(): Telegraf<BotContext> {
             })
             await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown' })
         } catch (err) {
-            log.error('text failed', err)
-            await ctx.reply(`⚠ Failed to process: ${(err as Error).message}`)
+            await reportFailure(bot, ctx, 'text', err)
         }
     })
 
