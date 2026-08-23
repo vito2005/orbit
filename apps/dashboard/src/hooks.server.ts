@@ -33,7 +33,16 @@ export const handle: Handle = async ({ event, resolve }) => {
         throw redirect(303, `/login?next=${encodeURIComponent(path)}`)
     }
 
-    return resolve(event, {
+    const response = await resolve(event, {
         filterSerializedResponseHeaders: (name) => name === 'content-range' || name === 'x-supabase-api-version',
     })
+
+    // Rendered pages carry one user's entries and currently declare no caching at
+    // all, so anything in front of the app — a CDN, a corporate proxy, the back
+    // button — is free to store and re-serve them to somebody else. Only fill the
+    // gap: hashed assets already declare immutable caching and must keep it.
+    if (!response.headers.has('cache-control')) {
+        response.headers.set('cache-control', 'private, no-store')
+    }
+    return response
 }
