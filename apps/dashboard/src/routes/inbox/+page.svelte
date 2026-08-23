@@ -118,7 +118,7 @@
                     {/each}
                 </div>
             {/if}
-            <EntryEdit {entry} {redirectTo} />
+            <EntryEdit {entry} {redirectTo} categories={data.categories} />
             <div class="mt-4 flex gap-1.75 border-t border-border pt-3">
                 <button type="button" class={cardAction} onclick={() => toggleDone(entry)}>
                     {isDone(entry) ? '↩ В работу' : '✓ Готово'}

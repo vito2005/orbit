@@ -34,17 +34,6 @@ export const card = `${cardBase} border-border bg-surface/88 hover:border-border
 
 export const cardDone = `${cardBase} border-ok/40 bg-ok-soft hover:border-ok/60`
 
-export const hubList = 'm-0 list-none overflow-hidden rounded-card border border-border bg-surface/82 p-0 shadow-soft'
-
-const hubRowBase =
-    'grid min-h-13.5 grid-cols-[64px_minmax(0,1fr)] items-center gap-3 border-b border-border px-3.5 py-2.5 transition-[background] duration-150 last:border-b-0'
-
-export const hubRow = `${hubRowBase} hover:bg-paper`
-
-export const hubRowDone = `${hubRowBase} bg-ok-soft`
-
-export const hubTitle = 'min-w-0 truncate font-serif text-base font-medium hover:text-accent-hover hover:no-underline'
-
 export const emptyBox =
     'grid min-h-55 place-items-center rounded-card border border-dashed border-border-strong bg-paper/50 px-6 py-10.5 text-center text-text-2'
 

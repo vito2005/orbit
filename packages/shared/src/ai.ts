@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI, { toFile } from 'openai'
 
 import { env } from './env'
-import { type AIAnalysis, CATEGORIES, type Category, ENERGIES, type Energy } from './types'
+import { type AIAnalysis, DEFAULT_CATEGORIES, ENERGIES, type Energy } from './types'
 
 let openaiCached: OpenAI | null = null
 let anthropicCached: Anthropic | null = null
@@ -155,42 +155,41 @@ export function guessContentType(fileName: string): string {
     return 'application/octet-stream'
 }
 
-const SYSTEM_PROMPT = `You are a personal life-inbox assistant. The user sends raw thoughts in any language (often Russian). You must analyze the transcript and return STRICT JSON with this exact shape:
+// Built per request: the valid categories are whatever the owner configured, so
+// the prompt cannot name them ahead of time. The old version also carried
+// classification rules written around one person's life (Three.js, YouTube,
+// standup) — with a user-defined list those rules would be actively wrong, so
+// the names themselves have to carry the meaning.
+function buildSystemPrompt(categories: string[]): string {
+    return `You are a personal life-inbox assistant. The user sends raw thoughts in any language (often Russian). You must analyze the transcript and return STRICT JSON with this exact shape:
 
 {
   "title": string,             // <= 80 chars, in the SAME language as input
   "summary": string,           // 1-3 sentences in the SAME language as input
-  "category": one of: ${CATEGORIES.map((c) => `"${c}"`).join(', ')},
+  "category": one of: ${categories.map((c) => `"${c}"`).join(', ')},
   "tags": string[],            // 2-6 short lowercase tags, in the SAME language as input
   "next_action": string|null,  // only a step the user actually stated or clearly implied, else null
   "energy": one of: ${ENERGIES.map((e) => `"${e}"`).join(', ')},
-  "content_potential": number|null  // 1-10 if it could become a reels/post/video, else null
+  "content_potential": number|null  // 1-10 if it could become a post or video, else null
 }
 
-User context (use for category disambiguation and content_potential scoring):
-- Primary career vector: high-paid frontend / Three.js / creative engineering (international market). Programming is the main axis — work / 3d tasks deserve precise categorization.
-- Primary content channel: YouTube (long-form videos about Three.js / frontend / creative tech). Three.js / frontend / shader / WebGL demo ideas → content_potential 7-10. Personal vlog / random thoughts → 1-4.
-
-Categorization rules:
-- Reels/video/post/YouTube/Instagram/social media idea => "content"
-- Programming/work task/code/career/job interviews => "work"
-- Three.js, WebGL, 3D graphics, Bruno Simon course => "3d"
-- Joke, comedy observation, standup material => "standup"
-- Wife, kid, parents, household => "family"
-- Income, expenses, offers, salary, debts, investments => "money"
-- Sport, sleep, food, mental health => "health"
-- If uncertain => "personal" or "random"
+Categorisation:
+- Read the category names as the user's own vocabulary and pick the one that fits best.
+- Pick exactly one. If nothing fits well, choose the most general category available.
+- Never invent a category outside the list.
 
 Output rules:
 - Every string you produce — title, summary AND tags — must be in the SAME language as the transcript. Never translate to English. A Russian transcript gets Russian tags.
 - next_action must be grounded in what the user actually said. If they stated no next step, return null. Never invent follow-up work, backups, or cleanup the user did not mention.
 
 Return JSON only. No prose, no markdown fences.`
+}
 
-export async function analyze(transcript: string): Promise<AIAnalysis> {
+export async function analyze(transcript: string, categories?: string[]): Promise<AIAnalysis> {
+    const allowed = categories?.length ? categories : [...DEFAULT_CATEGORIES]
     const result = await chatCompletion(
         {
-            systemMessage: SYSTEM_PROMPT,
+            systemMessage: buildSystemPrompt(allowed),
             userContent: transcript,
             jsonMode: true,
             temperature: 0.3,
@@ -205,15 +204,17 @@ export async function analyze(transcript: string): Promise<AIAnalysis> {
     } catch {
         throw new Error(`AI returned non-JSON: ${raw.slice(0, 200)}`)
     }
-    return normalizeAnalysis(parsed, transcript)
+    return normalizeAnalysis(parsed, transcript, allowed)
 }
 
-function normalizeAnalysis(input: unknown, transcript: string): AIAnalysis {
+function normalizeAnalysis(input: unknown, transcript: string, categories: string[]): AIAnalysis {
     const obj = (input ?? {}) as Record<string, unknown>
 
-    const category = (CATEGORIES as readonly string[]).includes(obj.category as string)
-        ? (obj.category as Category)
-        : 'random'
+    // Falls back to the last configured category, which the prompt describes as
+    // the catch-all — a hardcoded 'random' may not exist in this user's list.
+    const category = categories.includes(obj.category as string)
+        ? (obj.category as string)
+        : (categories.at(-1) ?? 'random')
 
     const energy = (ENERGIES as readonly string[]).includes(obj.energy as string) ? (obj.energy as Energy) : 'medium'
 

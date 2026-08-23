@@ -1,4 +1,4 @@
-import { CATEGORIES, listByPriorities, listEntries, listTags, PRIORITIES } from '@orbit/shared'
+import { getProfile, listByPriorities, listEntries, listTags, PRIORITIES } from '@orbit/shared'
 
 import type { PageServerLoad } from './$types'
 
@@ -41,6 +41,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
         entries,
         tags: await listTags(locals.supabase),
         filters: { category, search, priority, tag, done: doneParam },
-        categories: CATEGORIES,
+        categories: (await getProfile(locals.supabase)).categories,
     }
 }

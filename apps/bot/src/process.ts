@@ -1,6 +1,7 @@
 import {
     analyze,
     type Entry,
+    getProfileFor,
     getServiceClient,
     insertEntry,
     type NewEntry,
@@ -32,7 +33,8 @@ export async function processVoice(args: {
     log.info(`Transcript (${transcript.length} chars)`)
 
     log.info('Analyzing transcript')
-    const analysis = await analyze(transcript)
+    const profile = await getProfileFor(supabase, args.userId)
+    const analysis = await analyze(transcript, profile.categories)
 
     const entry: NewEntry = {
         user_id: args.userId,
@@ -61,7 +63,8 @@ export async function processText(args: { userId: string; text: string; telegram
     const supabase = getServiceClient()
 
     log.info(`Analyzing text (${args.text.length} chars)`)
-    const analysis = await analyze(args.text)
+    const profile = await getProfileFor(supabase, args.userId)
+    const analysis = await analyze(args.text, profile.categories)
 
     const entry: NewEntry = {
         user_id: args.userId,

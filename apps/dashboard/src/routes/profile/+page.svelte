@@ -1,10 +1,11 @@
 <script lang="ts">
     import { page } from '$app/state'
-    import { btnPrimary, btnSecondary, calloutReasoning } from '$lib/ui'
+    import { btnPrimary, btnSecondary, calloutError, calloutReasoning, chip } from '$lib/ui'
 
-    import type { PageData } from './$types'
+    import type { ActionData, PageData } from './$types'
 
-    const { data }: { data: PageData } = $props()
+    const { data, form }: { data: PageData; form: ActionData } = $props()
+    const catsSaved = $derived(page.url.searchParams.get('cats') === '1')
     const tgUnlinked = $derived(page.url.searchParams.get('tg_unlinked') === '1')
     const lastUpdated = $derived(formatDate(data.profile.updated_at))
 
@@ -24,9 +25,44 @@
 
 <p class="mb-3.5 text-[13px] text-muted">Свободный текст о себе. Сейчас нигде не используется — см. ROADMAP.</p>
 
-{#if tgUnlinked}
-    <p class={calloutReasoning}>Telegram отвязан.</p>
+{#if tgUnlinked || catsSaved}
+    <p class={calloutReasoning}>
+        {#if tgUnlinked}Telegram отвязан.{/if}
+        {#if catsSaved}Категории обновлены.{/if}
+    </p>
 {/if}
+{#if form?.error}
+    <p class={calloutError}>{form.error}</p>
+{/if}
+
+<section class="mb-9 pt-1">
+    <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">
+        Категории ({data.profile.categories.length})
+    </h2>
+    <p class="mb-3 text-[13px] text-muted">
+        По ним AI раскладывает каждую запись. Называй так, как думаешь о своей жизни — модель читает сами названия,
+        отдельных правил под них нет. Удаление не трогает уже разложенные записи: они сохранят прежнюю категорию.
+    </p>
+    <div class="mb-3 flex flex-wrap gap-1.5">
+        {#each data.profile.categories as c (c)}
+            <form method="POST" action="?/removeCategory" class="{chip} gap-1.5">
+                <input type="hidden" name="category" value={c} />
+                {c}
+                <button
+                    type="submit"
+                    aria-label="Удалить категорию {c}"
+                    class="cursor-pointer border-0 bg-transparent p-0 text-base leading-none text-muted hover:text-danger"
+                >
+                    ×
+                </button>
+            </form>
+        {/each}
+    </div>
+    <form method="POST" action="?/addCategory" class="flex flex-wrap items-center gap-2.5">
+        <input type="text" name="category" placeholder="Новая категория" maxlength="24" class="w-auto" required />
+        <button type="submit" class={btnSecondary}>Добавить</button>
+    </form>
+</section>
 
 <section class="mb-9 pt-1">
     <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">Telegram-бот</h2>

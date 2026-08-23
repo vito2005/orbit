@@ -1,7 +1,14 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import { env } from './env'
-import type { Entry, EntryPatch, NewEntry, TelegramLink, UserProfile } from './types'
+import {
+    DEFAULT_CATEGORIES,
+    type Entry,
+    type EntryPatch,
+    type NewEntry,
+    type TelegramLink,
+    type UserProfile,
+} from './types'
 
 let cached: SupabaseClient | null = null
 
@@ -159,27 +166,41 @@ export async function updateEntry(client: SupabaseClient, id: string, patch: Ent
     if (error) throw new Error(`DB entry update failed: ${error.message}`)
 }
 
-export async function listSubtasksOf(client: SupabaseClient, parentId: string): Promise<Entry[]> {
-    const { data, error } = await client
-        .from('entries')
-        .select('*')
-        .eq('parent_id', parentId)
-        .order('created_at', { ascending: true })
-    if (error) {
-        throw new Error(`DB list subtasks failed: ${error.message}`)
+const FIELDS = 'user_id, categories, updated_at'
+
+function withFallback(row: UserProfile | null): UserProfile {
+    if (!row) {
+        return { user_id: '', categories: [...DEFAULT_CATEGORIES], updated_at: new Date().toISOString() }
     }
-    return (data ?? []) as Entry[]
+    return { ...row, categories: row.categories?.length ? row.categories : [...DEFAULT_CATEGORIES] }
 }
 
+// RLS scopes this to the caller, so the dashboard needs no user_id.
 export async function getProfile(client: SupabaseClient): Promise<UserProfile> {
-    const { data, error } = await client.from('user_profile').select('user_id, updated_at').maybeSingle()
+    const { data, error } = await client.from('user_profile').select(FIELDS).maybeSingle()
     if (error) {
         throw new Error(`DB profile get failed: ${error.message}`)
     }
-    if (!data) {
-        return { user_id: '', updated_at: new Date().toISOString() }
+    return withFallback(data as UserProfile | null)
+}
+
+// The bot runs under the service role, which bypasses RLS — without an explicit
+// user_id it would read somebody else's row.
+export async function getProfileFor(client: SupabaseClient, userId: string): Promise<UserProfile> {
+    const { data, error } = await client.from('user_profile').select(FIELDS).eq('user_id', userId).maybeSingle()
+    if (error) {
+        throw new Error(`DB profile get failed: ${error.message}`)
     }
-    return data as UserProfile
+    return withFallback(data as UserProfile | null)
+}
+
+export async function saveCategories(client: SupabaseClient, categories: string[]): Promise<void> {
+    const { error } = await client
+        .from('user_profile')
+        .upsert({ categories, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+    if (error) {
+        throw new Error(`DB categories save failed: ${error.message}`)
+    }
 }
 
 // --- Telegram account linking ---------------------------------------------

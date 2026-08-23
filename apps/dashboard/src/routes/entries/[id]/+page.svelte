@@ -3,15 +3,12 @@
     import EntryEdit from '$lib/components/EntryEdit.svelte'
     import { doneAt, isArchived, isDone, removeEntry, toggleArchive, toggleDone } from '$lib/entries.svelte'
     import { categoryEmoji, formatDate } from '$lib/format'
-    import { btnDanger, btnPrimary, btnSecondary, chip, hubList, hubRow, hubRowDone, hubTitle } from '$lib/ui'
+    import { btnDanger, btnPrimary, btnSecondary, chip } from '$lib/ui'
 
     import type { PageData } from './$types'
 
     const { data }: { data: PageData } = $props()
     const e = $derived(data.entry)
-    const parent = $derived(data.parent)
-    const subtasks = $derived(data.subtasks)
-    const doneSubtasks = $derived(subtasks.filter(isDone).length)
 
     async function handleDelete() {
         if (!confirm('Delete this entry permanently?')) {
@@ -41,11 +38,6 @@
 </div>
 
 <div class="max-w-195">
-    {#if parent}
-        <p class="mb-2 text-[13px] text-text-2">
-            ↑ часть задачи: <a href="/entries/{parent.id}">{categoryEmoji(parent.category)} {parent.title}</a>
-        </p>
-    {/if}
     <h1 class="mb-2.5 font-serif text-[clamp(2rem,8vw,2.8rem)] font-medium leading-[1.02] tracking-[-0.035em]">
         {categoryEmoji(e.category)}
         {e.title}
@@ -61,7 +53,7 @@
             &nbsp;·&nbsp; <span class="text-ok">✓ выполнено {formatDate(doneAt(e) as string)}</span>
         {/if}
     </div>
-    <EntryEdit entry={e} redirectTo="/entries/{e.id}" />
+    <EntryEdit entry={e} categories={data.categories} redirectTo="/entries/{e.id}" />
 
     {#if e.summary}
         <section class={detailSection}>
@@ -87,41 +79,6 @@
             </div>
         </section>
     {/if}
-
-    <section class={detailSection}>
-        <h2 class={detailH2}>
-            Подзадачи
-            {#if subtasks.length > 0}
-                <span class="font-normal text-muted">({doneSubtasks}/{subtasks.length})</span>
-            {/if}
-        </h2>
-
-        {#if subtasks.length > 0}
-            <ul class="{hubList} mb-3">
-                {#each subtasks as st (st.id)}
-                    <li class={isDone(st) ? hubRowDone : hubRow}>
-                        <button
-                            type="button"
-                            aria-label={isDone(st) ? 'Вернуть в работу' : 'Отметить выполненной'}
-                            onclick={() => toggleDone(st)}
-                            class="cursor-pointer justify-self-center rounded-field border-0 bg-transparent px-2.5 py-1 text-base leading-none {isDone(
-                                st,
-                            )
-                                ? 'text-ok'
-                                : 'text-muted hover:text-accent-hover'}"
-                        >
-                            {isDone(st) ? '✓' : '○'}
-                        </button>
-                        <a href="/entries/{st.id}" class="{hubTitle} {isDone(st) ? 'text-text-2' : 'text-text'}">
-                            {st.title}
-                        </a>
-                    </li>
-                {/each}
-            </ul>
-        {:else}
-            <p class="m-0 text-[13px] text-muted">Подзадач нет.</p>
-        {/if}
-    </section>
 
     {#if e.type === 'voice'}
         <section class={detailSection}>

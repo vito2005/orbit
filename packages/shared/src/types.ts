@@ -1,16 +1,18 @@
-export const CATEGORIES = [
+// Categories are per-user (user_profile.categories). This list only seeds a new
+// account and acts as the fallback when a profile row is missing.
+export const DEFAULT_CATEGORIES = [
     'work',
-    '3d',
-    'content',
-    'standup',
-    'family',
-    'money',
-    'health',
     'personal',
+    'family',
+    'health',
+    'money',
+    'content',
+    'ideas',
     'random',
 ] as const
 
-export type Category = (typeof CATEGORIES)[number]
+// Not a union: the valid set is whatever the owner configured.
+export type Category = string
 
 export const PRIORITIES = ['backlog', 'archive'] as const
 export type Priority = (typeof PRIORITIES)[number]
@@ -64,6 +66,7 @@ export type EntryPatch = Partial<Pick<Entry, 'priority' | 'category' | 'motivati
 
 export interface UserProfile {
     user_id: string
+    categories: string[]
     updated_at: string
 }
 

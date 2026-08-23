@@ -1,7 +1,7 @@
 import {
-    CATEGORIES,
     consumeTelegramLinkCode,
     env,
+    getProfileFor,
     getServiceClient,
     linkTelegramUser,
     resolveTelegramUser,
@@ -93,7 +93,8 @@ export function createBot(): Telegraf<BotContext> {
     })
 
     bot.command('categories', async (ctx) => {
-        const lines = CATEGORIES.map((c) => `• ${categoryLabel(c)}`)
+        const profile = await getProfileFor(supabase, ctx.state.userId!)
+        const lines = profile.categories.map((c) => `• ${categoryLabel(c)}`)
         await ctx.reply(`*Categories:*\n${lines.join('\n')}`, {
             parse_mode: 'Markdown',
         })
