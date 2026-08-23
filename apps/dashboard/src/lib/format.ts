@@ -6,6 +6,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
     family: '👨‍👩‍👧',
     money: '💰',
     health: '🏃',
+    ideas: '💡',
     personal: '🧠',
     random: '🌀',
 }
