@@ -35,6 +35,23 @@ function resolveChatModel(): string {
     return env.OPENAI_CHAT_MODEL
 }
 
+// Providers rate-limit legitimately when several captures land at once, and a
+// 429 should not surface to the user as a failed note.
+async function withRetry<T>(operation: () => Promise<T>, attempts = 4): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            return await operation()
+        } catch (err) {
+            const status = (err as { status?: number }).status
+            const retryable = status === 429 || (status !== undefined && status >= 500)
+            if (!retryable || attempt >= attempts) {
+                throw err
+            }
+            await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** (attempt - 1)))
+        }
+    }
+}
+
 // Normalized chat response — both providers map to this shape so call sites
 // don't care which one they hit.
 interface NormalizedChatResult {
@@ -54,7 +71,9 @@ interface NormalizedChatParams {
 
 async function chatCompletion(params: NormalizedChatParams, _functionName: string): Promise<NormalizedChatResult> {
     const model = params.model ?? resolveChatModel()
-    return isAnthropicModel(model) ? await callAnthropic({ ...params, model }) : await callOpenAI({ ...params, model })
+    return isAnthropicModel(model)
+        ? await withRetry(() => callAnthropic({ ...params, model }))
+        : await withRetry(() => callOpenAI({ ...params, model }))
 }
 
 async function callOpenAI(params: NormalizedChatParams & { model: string }): Promise<NormalizedChatResult> {
@@ -117,10 +136,12 @@ export async function transcribeAudio(audio: ArrayBuffer | Uint8Array, fileName:
     const file = await toFile(bytes, fileName, {
         type: guessContentType(fileName),
     })
-    const result = await openaiClient().audio.transcriptions.create({
-        file,
-        model: env.OPENAI_TRANSCRIBE_MODEL,
-    })
+    const result = await withRetry(() =>
+        openaiClient().audio.transcriptions.create({
+            file,
+            model: env.OPENAI_TRANSCRIBE_MODEL,
+        }),
+    )
     return result.text.trim()
 }
 
@@ -140,8 +161,8 @@ const SYSTEM_PROMPT = `You are a personal life-inbox assistant. The user sends r
   "title": string,             // <= 80 chars, in the SAME language as input
   "summary": string,           // 1-3 sentences in the SAME language as input
   "category": one of: ${CATEGORIES.map((c) => `"${c}"`).join(', ')},
-  "tags": string[],            // 2-6 short lowercase tags
-  "next_action": string|null,  // a concrete next step if obvious, else null
+  "tags": string[],            // 2-6 short lowercase tags, in the SAME language as input
+  "next_action": string|null,  // only a step the user actually stated or clearly implied, else null
   "energy": one of: ${ENERGIES.map((e) => `"${e}"`).join(', ')},
   "content_potential": number|null  // 1-10 if it could become a reels/post/video, else null
 }
@@ -159,6 +180,10 @@ Categorization rules:
 - Income, expenses, offers, salary, debts, investments => "money"
 - Sport, sleep, food, mental health => "health"
 - If uncertain => "personal" or "random"
+
+Output rules:
+- Every string you produce — title, summary AND tags — must be in the SAME language as the transcript. Never translate to English. A Russian transcript gets Russian tags.
+- next_action must be grounded in what the user actually said. If they stated no next step, return null. Never invent follow-up work, backups, or cleanup the user did not mention.
 
 Return JSON only. No prose, no markdown fences.`
 
