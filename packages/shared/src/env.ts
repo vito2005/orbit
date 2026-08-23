@@ -25,6 +25,13 @@ export const env = {
     get TELEGRAM_ADMIN_CHAT_ID() {
         return optional('TELEGRAM_ADMIN_CHAT_ID', '')
     },
+    // Public address of the dashboard. The bot has no request to derive an origin
+    // from, and adapter-node behind a proxy cannot be trusted to compute one, so
+    // the deep link in a capture reply and the signup confirmation both read it
+    // from here. Trailing slash is stripped on use.
+    get PUBLIC_DASHBOARD_URL() {
+        return optional('PUBLIC_DASHBOARD_URL', '').replace(/\/+$/, '')
+    },
     get OPENAI_API_KEY() {
         return required('OPENAI_API_KEY')
     },

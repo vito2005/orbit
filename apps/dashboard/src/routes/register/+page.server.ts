@@ -1,3 +1,4 @@
+import { env } from '@orbit/shared'
 import { fail, redirect } from '@sveltejs/kit'
 
 import type { Actions, PageServerLoad } from './$types'
@@ -17,7 +18,8 @@ export const actions: Actions = {
         const { data: result, error } = await locals.supabase.auth.signUp({
             email,
             password,
-            options: { emailRedirectTo: `${url.origin}/auth/confirm` },
+            // Falls back to the request origin so local signup still works unset.
+            options: { emailRedirectTo: `${env.PUBLIC_DASHBOARD_URL || url.origin}/auth/confirm` },
         })
         if (error) {
             return fail(400, { error: error.message, email })

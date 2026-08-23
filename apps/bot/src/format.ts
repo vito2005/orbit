@@ -1,4 +1,4 @@
-import type { Entry } from '@orbit/shared'
+import { type Entry, env } from '@orbit/shared'
 
 // Both sets on purpose: Russian names seed new accounts, the English ones are
 // what existing entries were classified with and must keep their icon.
@@ -38,6 +38,11 @@ export function formatSaved(entry: Entry): string {
     }
     if (entry.tags.length > 0) {
         lines.push(`*Теги:* ${entry.tags.map((t) => `#${escape(t.replace(/\s+/g, '_'))}`).join(' ')}`)
+    }
+    // Built here rather than escaped: the brackets are Markdown syntax, and the
+    // id is a UUID, so there is nothing user-controlled to escape.
+    if (env.PUBLIC_DASHBOARD_URL) {
+        lines.push(`\n[Открыть в дашборде](${env.PUBLIC_DASHBOARD_URL}/entries/${entry.id})`)
     }
     return lines.join('\n')
 }
