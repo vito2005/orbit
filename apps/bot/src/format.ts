@@ -1,8 +1,8 @@
 import { type Entry, env } from '@orbit/shared'
 import type { InlineKeyboardMarkup } from 'telegraf/types'
 
-// Both sets on purpose: Russian names seed new accounts, the English ones are
-// what existing entries were classified with and must keep their icon.
+// The shipped defaults plus '3d' / 'стендап', which this account added itself —
+// an unmapped name still renders, it just falls back to a bullet.
 const CATEGORY_EMOJI: Record<string, string> = {
     работа: '💻',
     личное: '🧠',
@@ -11,17 +11,9 @@ const CATEGORY_EMOJI: Record<string, string> = {
     деньги: '💰',
     контент: '🎬',
     идеи: '💡',
-    разное: '🌀',
-    work: '💻',
+    стендап: '🎤',
     '3d': '🎨',
-    content: '🎬',
-    standup: '🎤',
-    family: '👨‍👩‍👧',
-    money: '💰',
-    health: '🏃',
-    ideas: '💡',
-    personal: '🧠',
-    random: '🌀',
+    разное: '🌀',
 }
 
 export function categoryLabel(c: string): string {
