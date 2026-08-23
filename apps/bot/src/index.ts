@@ -10,6 +10,15 @@ async function main() {
     // Drop any pending updates from a previous run so we don't replay old voices.
     await bot.telegram.deleteWebhook({ drop_pending_updates: true }).catch(() => {})
 
+    // Registers the commands in Telegram's own menu, so they are discoverable
+    // instead of something the user has to remember.
+    await bot.telegram
+        .setMyCommands([
+            { command: 'dashboard', description: 'Открыть журнал' },
+            { command: 'categories', description: 'Мои категории' },
+        ])
+        .catch((err) => log.error('setMyCommands failed', err))
+
     const app = new Elysia()
         .get('/', () => ({ ok: true, name: 'orbit-bot' }))
         .get('/health', () => ({ ok: true, ts: new Date().toISOString() }))

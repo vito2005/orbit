@@ -9,7 +9,7 @@ import {
 import { type Context, Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 
-import { categoryLabel, formatSaved } from './format.ts'
+import { categoryLabel, dashboardButton, formatSaved } from './format.ts'
 import { log } from './log.ts'
 import { processText, processVoice } from './process.ts'
 
@@ -92,6 +92,15 @@ export function createBot(): Telegraf<BotContext> {
         await ctx.reply('✅ Аккаунт привязан. Присылай голос или текст — я сохраню в твой журнал.')
     })
 
+    bot.command('dashboard', async (ctx) => {
+        const button = dashboardButton()
+        if (!button.reply_markup) {
+            await ctx.reply('Адрес дашборда не настроен.')
+            return
+        }
+        await ctx.reply('Твой журнал:', button)
+    })
+
     bot.command('categories', async (ctx) => {
         const profile = await getProfileFor(supabase, ctx.state.userId!)
         const lines = profile.categories.map((c) => `• ${categoryLabel(c)}`)
@@ -116,7 +125,7 @@ export function createBot(): Telegraf<BotContext> {
                 telegramFileName: ext,
                 telegramMessageId: ctx.message.message_id,
             })
-            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown' })
+            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...dashboardButton(`/entries/${entry.id}`) })
         } catch (err) {
             await reportFailure(bot, ctx, 'voice', err)
         }
@@ -137,7 +146,7 @@ export function createBot(): Telegraf<BotContext> {
                 telegramFileName: ctx.message.audio.file_name ?? fileNameFromUrl(link.toString()),
                 telegramMessageId: ctx.message.message_id,
             })
-            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown' })
+            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...dashboardButton(`/entries/${entry.id}`) })
         } catch (err) {
             await reportFailure(bot, ctx, 'audio', err)
         }
@@ -153,7 +162,7 @@ export function createBot(): Telegraf<BotContext> {
                 text,
                 telegramMessageId: ctx.message.message_id,
             })
-            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown' })
+            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...dashboardButton(`/entries/${entry.id}`) })
         } catch (err) {
             await reportFailure(bot, ctx, 'text', err)
         }
