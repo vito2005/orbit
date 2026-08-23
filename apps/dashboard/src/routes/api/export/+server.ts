@@ -1,4 +1,4 @@
-import { type Entry, getProfile, listAllEntries } from '@orbit/shared'
+import { type Entry, listAllEntries } from '@orbit/shared'
 
 import type { RequestHandler } from './$types'
 
@@ -53,7 +53,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const format = url.searchParams.get('format') === 'md' ? 'md' : 'json'
     const withPrompt = url.searchParams.get('prompt') === '1'
 
-    const [entries, profile] = await Promise.all([listAllEntries(locals.supabase), getProfile(locals.supabase)])
+    const entries = await listAllEntries(locals.supabase)
     const today = new Date().toISOString().slice(0, 10)
     const filename = `orbit-export-${today}.${format}`
 
@@ -73,7 +73,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             {
                 exported_at: new Date().toISOString(),
                 entry_count: entries.length,
-                profile: { about_me: profile.about_me },
                 entries: entries.map(({ user_id: _user_id, ...entry }) => entry),
             },
             null,

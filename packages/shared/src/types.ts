@@ -65,11 +65,8 @@ export type EntryPatch = Partial<Pick<Entry, 'priority' | 'category' | 'motivati
 
 export interface UserProfile {
     user_id: string
-    about_me: string
     updated_at: string
 }
-
-export type ProfilePatch = Partial<Pick<UserProfile, 'about_me'>>
 
 export interface TelegramLink {
     user_id: string

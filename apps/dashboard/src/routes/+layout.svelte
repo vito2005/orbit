@@ -11,16 +11,12 @@
     const isAuthPage = $derived(page.url.pathname === '/login' || page.url.pathname === '/register')
 
     const navItems = [
-        { href: '/', label: 'Journal' },
         { href: '/inbox', label: 'Inbox' },
         { href: '/inbox?priority=archive', label: 'Archive' },
         { href: '/profile', label: 'Profile' },
     ]
 
     function isActive(href: string): boolean {
-        if (href === '/') {
-            return page.url.pathname === '/'
-        }
         if (href.includes('priority=archive')) {
             return page.url.pathname === '/inbox' && page.url.searchParams.get('priority') === 'archive'
         }

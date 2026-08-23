@@ -1,11 +1,10 @@
 <script lang="ts">
     import { page } from '$app/state'
-    import { btnPrimary, btnSecondary, calloutError, calloutReasoning } from '$lib/ui'
+    import { btnPrimary, btnSecondary, calloutReasoning } from '$lib/ui'
 
-    import type { ActionData, PageData } from './$types'
+    import type { PageData } from './$types'
 
-    const { data, form }: { data: PageData; form: ActionData } = $props()
-    const justSaved = $derived(page.url.searchParams.get('saved') === '1')
+    const { data }: { data: PageData } = $props()
     const tgUnlinked = $derived(page.url.searchParams.get('tg_unlinked') === '1')
     const lastUpdated = $derived(formatDate(data.profile.updated_at))
 
@@ -25,14 +24,8 @@
 
 <p class="mb-3.5 text-[13px] text-muted">Свободный текст о себе. Сейчас нигде не используется — см. ROADMAP.</p>
 
-{#if justSaved || tgUnlinked}
-    <p class={calloutReasoning}>
-        {#if justSaved}Профиль сохранён.{/if}
-        {#if tgUnlinked}Telegram отвязан.{/if}
-    </p>
-{/if}
-{#if form?.error}
-    <p class={calloutError}>{form.error}</p>
+{#if tgUnlinked}
+    <p class={calloutReasoning}>Telegram отвязан.</p>
 {/if}
 
 <section class="mb-9 pt-1">
@@ -63,23 +56,6 @@
     {:else}
         <p class="text-[13px] text-muted">Имя бота не настроено (TELEGRAM_BOT_USERNAME) — привязка недоступна.</p>
     {/if}
-</section>
-
-<section class="mb-9 pt-1">
-    <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">О себе (короткий текст)</h2>
-    <form method="POST" action="?/save">
-        <textarea
-            name="about_me"
-            rows="14"
-            class="min-h-75"
-            placeholder="Frontend dev с N годами опыта. Стек: ... Сильные стороны: ... Слабые: ... Что заряжает: ... Что тормозит: ... Семейная ситуация: ..."
-            >{data.profile.about_me}</textarea
-        >
-        <div class="mt-3 flex flex-wrap items-center gap-2.5">
-            <button type="submit" class={btnPrimary}>Сохранить</button>
-            <span class="text-xs text-muted">{data.profile.about_me.length} символов</span>
-        </div>
-    </form>
 </section>
 
 <section class="mb-9 pt-1">

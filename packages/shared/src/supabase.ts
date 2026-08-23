@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import { env } from './env'
-import type { Entry, EntryPatch, NewEntry, ProfilePatch, TelegramLink, UserProfile } from './types'
+import type { Entry, EntryPatch, NewEntry, TelegramLink, UserProfile } from './types'
 
 let cached: SupabaseClient | null = null
 
@@ -48,6 +48,8 @@ export async function listEntries(
     opts: {
         category?: string
         search?: string
+        tag?: string
+        done?: boolean
         limit?: number
         sinceDays?: number
     } = {},
@@ -60,6 +62,12 @@ export async function listEntries(
 
     if (opts.category) {
         query = query.eq('category', opts.category)
+    }
+    if (opts.tag) {
+        query = query.contains('tags', [opts.tag])
+    }
+    if (opts.done !== undefined) {
+        query = opts.done ? query.not('done_at', 'is', null) : query.is('done_at', null)
     }
     if (opts.sinceDays) {
         const since = new Date(Date.now() - opts.sinceDays * 24 * 60 * 60 * 1000)
@@ -97,6 +105,26 @@ export async function listAllEntries(client: SupabaseClient): Promise<Entry[]> {
             return all
         }
     }
+}
+
+// Tags for the inbox filter, commonest first. Single-use tags are deliberately
+// left out — they are the large majority (183 of 220 at the time of writing) and
+// turn the dropdown into noise. They stay reachable by clicking a tag on a card.
+export async function listTags(client: SupabaseClient): Promise<{ tag: string; count: number }[]> {
+    const { data, error } = await client.from('entries').select('tags').limit(2000)
+    if (error) {
+        throw new Error(`DB list tags failed: ${error.message}`)
+    }
+    const freq = new Map<string, number>()
+    for (const row of (data ?? []) as { tags: string[] }[]) {
+        for (const tag of row.tags ?? []) {
+            freq.set(tag, (freq.get(tag) ?? 0) + 1)
+        }
+    }
+    return [...freq.entries()]
+        .filter(([, count]) => count > 1)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ru'))
+        .map(([tag, count]) => ({ tag, count }))
 }
 
 export async function getEntry(client: SupabaseClient, id: string): Promise<Entry | null> {
@@ -144,34 +172,14 @@ export async function listSubtasksOf(client: SupabaseClient, parentId: string): 
 }
 
 export async function getProfile(client: SupabaseClient): Promise<UserProfile> {
-    const { data, error } = await client.from('user_profile').select('user_id, about_me, updated_at').maybeSingle()
+    const { data, error } = await client.from('user_profile').select('user_id, updated_at').maybeSingle()
     if (error) {
         throw new Error(`DB profile get failed: ${error.message}`)
     }
     if (!data) {
-        return { user_id: '', about_me: '', updated_at: new Date().toISOString() }
+        return { user_id: '', updated_at: new Date().toISOString() }
     }
     return data as UserProfile
-}
-
-export async function saveProfile(client: SupabaseClient, patch: ProfilePatch): Promise<void> {
-    const { error } = await client
-        .from('user_profile')
-        .upsert({ ...patch, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
-    if (error) {
-        throw new Error(`DB profile save failed: ${error.message}`)
-    }
-}
-
-export async function listRecent(client: SupabaseClient, limit = 5): Promise<Entry[]> {
-    const { data, error } = await client
-        .from('entries')
-        .select('*')
-        .neq('priority', 'archive')
-        .order('created_at', { ascending: false })
-        .limit(limit)
-    if (error) throw new Error(`DB list recent failed: ${error.message}`)
-    return (data ?? []) as Entry[]
 }
 
 // --- Telegram account linking ---------------------------------------------

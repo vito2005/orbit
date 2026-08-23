@@ -20,23 +20,31 @@
         ),
     )
 
-    function buildRedirectTo(filters: { search: string; category: string; priority: string }): string {
+    function buildRedirectTo(filters: {
+        search: string
+        category: string
+        priority: string
+        tag: string
+        done: string
+    }): string {
         const params = new SvelteURLSearchParams()
         if (filters.search) params.set('q', filters.search)
         if (filters.category) params.set('category', filters.category)
         if (filters.priority) params.set('priority', filters.priority)
+        if (filters.tag) params.set('tag', filters.tag)
+        if (filters.done) params.set('done', filters.done)
         const qs = params.toString()
         return qs ? `/inbox?${qs}` : '/inbox'
     }
 </script>
 
 <form
-    class="mb-6 grid grid-cols-1 gap-2 rounded-box border border-border bg-paper/80 p-2.5 sm:grid-cols-[minmax(220px,1fr)_auto_auto]"
+    class="mb-6 grid grid-cols-1 gap-2 rounded-box border border-border bg-paper/80 p-2.5 sm:grid-cols-[minmax(200px,1fr)_auto_auto_auto_auto]"
     method="GET"
 >
     <input type="search" name="q" placeholder="Search title, summary, transcript…" value={data.filters.search} />
     <select name="category">
-        <option value="">All categories</option>
+        <option value="">Все категории</option>
         {#each data.categories as cat (cat)}
             <option value={cat} selected={data.filters.category === cat}>
                 {categoryEmoji(cat)}
@@ -44,15 +52,33 @@
             </option>
         {/each}
     </select>
+    <select name="tag">
+        <option value="">Все теги</option>
+        {#each data.tags as t (t.tag)}
+            <option value={t.tag} selected={data.filters.tag === t.tag}>#{t.tag} ({t.count})</option>
+        {/each}
+        {#if data.filters.tag && !data.tags.some((t) => t.tag === data.filters.tag)}
+            <option value={data.filters.tag} selected>#{data.filters.tag}</option>
+        {/if}
+    </select>
+    <select name="done">
+        <option value="">Любой статус</option>
+        <option value="0" selected={data.filters.done === '0'}>Не выполнено</option>
+        <option value="1" selected={data.filters.done === '1'}>Выполнено</option>
+    </select>
     {#if data.filters.priority}
         <input type="hidden" name="priority" value={data.filters.priority} />
     {/if}
     <button type="submit" class={btnPrimary}>Filter</button>
 </form>
 
-{#if data.filters.priority}
+{#if data.filters.priority || data.filters.tag || data.filters.done}
     <p class="mb-3 text-[13px] text-muted">
-        Filtered to <strong>{priorityLabel(data.filters.priority)}</strong>. <a href="/inbox">Clear filter</a>
+        Фильтр:
+        {#if data.filters.priority}<strong>{priorityLabel(data.filters.priority)}</strong>{/if}
+        {#if data.filters.tag}<strong>#{data.filters.tag}</strong>{/if}
+        {#if data.filters.done}<strong>{data.filters.done === '1' ? 'выполнено' : 'не выполнено'}</strong>{/if}
+        · <a href="/inbox">сбросить</a>
     </p>
 {/if}
 
@@ -85,7 +111,10 @@
             {#if entry.tags.length > 0}
                 <div class="flex flex-wrap gap-1.5">
                     {#each entry.tags as tag (tag)}
-                        <span class={chip}>#{tag}</span>
+                        <a
+                            href="/inbox?tag={encodeURIComponent(tag)}"
+                            class="{chip} hover:border-accent hover:no-underline">#{tag}</a
+                        >
                     {/each}
                 </div>
             {/if}
