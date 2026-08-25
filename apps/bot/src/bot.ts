@@ -17,6 +17,19 @@ interface BotContext extends Context {
     state: { userId?: string }
 }
 
+// Telegram hands over files up to 20 MB — roughly three hours of speech. That
+// bills three times over: Whisper by the second, the transcript by the token,
+// and storage forever. Ten minutes is well past any real spoken thought.
+const MAX_MEDIA_SECONDS = 600
+
+function tooLongReply(seconds: number): string {
+    const minutes = Math.round(seconds / 60)
+    return (
+        `⚠️ Запись на ${minutes} мин — я беру до ${MAX_MEDIA_SECONDS / 60}. ` +
+        'Раздели на части и пришли ещё раз, они сохранятся отдельными записями.'
+    )
+}
+
 // A capture that fails is a thought the user thinks was saved. Tell them plainly
 // what to do — the voice message is still sitting in the chat — and tell the
 // operator separately, because nobody reads Railway logs.
@@ -111,6 +124,10 @@ export function createBot(): Telegraf<BotContext> {
 
     bot.on(message('voice'), async (ctx) => {
         try {
+            if (ctx.message.voice.duration > MAX_MEDIA_SECONDS) {
+                await ctx.reply(tooLongReply(ctx.message.voice.duration))
+                return
+            }
             await ctx.sendChatAction('typing')
             const fileId = ctx.message.voice.file_id
             const link = await ctx.telegram.getFileLink(fileId)
@@ -133,6 +150,10 @@ export function createBot(): Telegraf<BotContext> {
 
     bot.on(message('audio'), async (ctx) => {
         try {
+            if (ctx.message.audio.duration > MAX_MEDIA_SECONDS) {
+                await ctx.reply(tooLongReply(ctx.message.audio.duration))
+                return
+            }
             await ctx.sendChatAction('typing')
             const fileId = ctx.message.audio.file_id
             const link = await ctx.telegram.getFileLink(fileId)
