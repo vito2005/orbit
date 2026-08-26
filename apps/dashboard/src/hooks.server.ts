@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import type { Handle } from '@sveltejs/kit'
 import { redirect } from '@sveltejs/kit'
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/health']
+const PUBLIC_PATHS = ['/login', '/register', '/privacy', '/api/health']
 
 export const handle: Handle = async ({ event, resolve }) => {
     event.locals.supabase = createServerClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {

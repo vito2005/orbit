@@ -8,7 +8,9 @@
     import type { LayoutData } from './$types'
 
     const { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props()
-    const isAuthPage = $derived(page.url.pathname === '/login' || page.url.pathname === '/register')
+    // Chrome belongs to a signed-in session. /privacy is read by strangers too,
+    // and a nav they cannot use — ending in Logout — only confuses them.
+    const showChrome = $derived(data.loggedIn && page.url.pathname !== '/login' && page.url.pathname !== '/register')
 
     const navItems = [
         { href: '/inbox', label: 'Входящие' },
@@ -31,7 +33,7 @@
 </script>
 
 <div class="mx-auto min-h-dvh w-[min(100%,1040px)] px-4 pb-10 pt-4 sm:px-7 sm:pb-[54px] sm:pt-6 md:pt-7">
-    {#if !isAuthPage}
+    {#if showChrome}
         <header
             class="mb-10.5 grid gap-3.5 border-b border-text-2/20 pb-4.5 pt-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:pb-5 sm:pt-2.5 md:mb-16"
         >
@@ -75,12 +77,13 @@
         {@render children()}
     </main>
 
-    {#if !isAuthPage}
+    {#if showChrome}
         <footer
             class="mt-16 flex items-center gap-2.5 border-t border-text-2/[0.18] pt-4.5 font-serif text-sm italic text-muted"
         >
             <OrbitBrand compact />
             <span>Личный контекст, собранный в одном месте.</span>
+            <a href="/privacy" class="ml-auto not-italic hover:text-accent-hover">Политика конфиденциальности</a>
         </footer>
     {/if}
 </div>

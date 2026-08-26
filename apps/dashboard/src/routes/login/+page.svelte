@@ -44,4 +44,7 @@
             <button type="submit" class="{btnPrimary} min-h-11 w-full">Войти</button>
         </form>
     </details>
+    <p class="mt-6 text-center text-[12px] text-muted">
+        <a href="/privacy" class="text-muted hover:text-accent-hover">Политика конфиденциальности</a>
+    </p>
 </div>

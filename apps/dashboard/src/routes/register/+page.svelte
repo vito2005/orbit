@@ -22,4 +22,7 @@
     <p class="mt-5 text-center text-[13px] text-text-2">
         Уже есть аккаунт? <a href="/login">Войти</a>
     </p>
+    <p class="mt-6 text-center text-[12px] text-muted">
+        <a href="/privacy" class="text-muted hover:text-accent-hover">Политика конфиденциальности</a>
+    </p>
 </div>
