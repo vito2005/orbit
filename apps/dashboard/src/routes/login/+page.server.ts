@@ -1,3 +1,4 @@
+import { env, TELEGRAM_LOGIN_PAYLOAD } from '@orbit/shared'
 import { fail, redirect } from '@sveltejs/kit'
 
 import { safeRedirect } from '$lib/redirect'
@@ -8,7 +9,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     if (locals.user) {
         throw redirect(303, safeRedirect(url.searchParams.get('next'), '/'))
     }
-    return {}
+    // The payload makes Telegram send `/start login` on arrival, so the bot
+    // answers with a way in instead of an empty chat.
+    const botUsername = env.TELEGRAM_BOT_USERNAME
+    return { botLink: botUsername ? `https://t.me/${botUsername}?start=${TELEGRAM_LOGIN_PAYLOAD}` : '' }
 }
 
 export const actions: Actions = {

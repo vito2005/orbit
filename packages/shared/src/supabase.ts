@@ -228,6 +228,71 @@ export async function consumeTelegramLinkCode(client: SupabaseClient, code: stri
     return (data as { user_id: string }).user_id
 }
 
+// Bot-first signup. Supabase needs an address to issue the magic link that logs
+// the person into the dashboard, so a Telegram-born account gets a synthetic one.
+// Nobody types it or sees it; attaching a real address later keeps the same user id.
+const TELEGRAM_EMAIL_DOMAIN = 'bot.abuki.dev'
+
+function telegramEmail(telegramId: number): string {
+    return `tg-${telegramId}@${TELEGRAM_EMAIL_DOMAIN}`
+}
+
+// Nobody typed this address or would recognise it, so the UI has to know when
+// it is looking at one and show the person something they know instead.
+export function isTelegramEmail(email: string | undefined | null): boolean {
+    return Boolean(email?.endsWith(`@${TELEGRAM_EMAIL_DOMAIN}`))
+}
+
+// Supabase admin has no "get user by email", but generateLink returns the user
+// for an address already taken — which is how a repeat signup after unlinking
+// finds its old account instead of orphaning it.
+async function findUserByEmail(client: SupabaseClient, email: string): Promise<string | null> {
+    const { data, error } = await client.auth.admin.generateLink({ type: 'magiclink', email })
+    if (error) {
+        return null
+    }
+    return data.user?.id ?? null
+}
+
+// The bot holds the service role, so it mints the login token itself — that is
+// why the dashboard needs no admin key to accept it. Supabase owns the token's
+// single use and its expiry, so there is no code table of ours to police.
+export async function createDashboardLoginToken(client: SupabaseClient, userId: string): Promise<string> {
+    const { data: found, error: lookupError } = await client.auth.admin.getUserById(userId)
+    const email = found?.user?.email
+    if (lookupError || !email) {
+        throw new Error(`Auth user lookup failed: ${lookupError?.message ?? 'account has no email'}`)
+    }
+    const { data, error } = await client.auth.admin.generateLink({ type: 'magiclink', email })
+    const token = data?.properties?.hashed_token
+    if (error || !token) {
+        throw new Error(`Login link failed: ${error?.message ?? 'no token returned'}`)
+    }
+    return token
+}
+
+export async function createUserForTelegram(
+    client: SupabaseClient,
+    telegramId: number,
+    username?: string,
+): Promise<string> {
+    const email = telegramEmail(telegramId)
+    // The handle rides in user_metadata rather than a column: it arrives with
+    // every session already, so the dashboard needs no extra query to greet
+    // somebody by the name they know themselves by.
+    const created = await client.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: username ? { telegram_username: username } : {},
+    })
+    const userId = created.error ? await findUserByEmail(client, email) : created.data.user.id
+    if (!userId) {
+        throw new Error(`Auth user create failed: ${created.error?.message}`)
+    }
+    await linkTelegramUser(client, userId, telegramId)
+    return userId
+}
+
 export async function linkTelegramUser(client: SupabaseClient, userId: string, telegramId: number): Promise<void> {
     // Free this telegram from any prior account, then bind it to this user
     // (replacing whatever telegram they had before). This is what makes

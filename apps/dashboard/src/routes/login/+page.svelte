@@ -3,9 +3,10 @@
     import PasswordInput from '$lib/components/PasswordInput.svelte'
     import { btnPrimary, calloutError } from '$lib/ui'
 
-    import type { ActionData } from './$types'
+    import type { ActionData, PageData } from './$types'
 
-    const { form }: { form: ActionData } = $props()
+    const { form, data }: { form: ActionData; data: PageData } = $props()
+    const botLink = $derived(data.botLink)
 </script>
 
 <div
@@ -17,23 +18,30 @@
     {#if form?.error}
         <div class={calloutError}>{form.error}</div>
     {/if}
-    <form method="POST" class="grid gap-2.25">
-        <label for="login-email" class="text-xs font-semibold text-text-2">Email</label>
-        <input
-            id="login-email"
-            class="mb-1"
-            type="email"
-            name="email"
-            value={form?.email ?? ''}
-            placeholder="you@example.com"
-            autocomplete="email"
-            required
-        />
-        <label for="login-password" class="text-xs font-semibold text-text-2">Пароль</label>
-        <PasswordInput id="login-password" placeholder="Пароль" autocomplete="current-password" />
-        <button type="submit" class="{btnPrimary} min-h-11 w-full">Войти</button>
-    </form>
-    <p class="mt-5 text-center text-[13px] text-text-2">
-        Нет аккаунта? <a href="/register">Зарегистрироваться</a>
-    </p>
+
+    {#if botLink}
+        <a href={botLink} class="{btnPrimary} min-h-11 w-full no-underline hover:no-underline">Войти через Telegram</a>
+    {/if}
+
+    <!-- Email is the fallback, not the front door: an address is something you
+         attach to an account the bot already created, so it stays folded away. -->
+    <details class="mt-7 border-t border-border pt-5">
+        <summary class="cursor-pointer text-[13px] text-text-2 select-none">Войти по почте</summary>
+        <form method="POST" class="mt-4 grid gap-2.25">
+            <label for="login-email" class="text-xs font-semibold text-text-2">Email</label>
+            <input
+                id="login-email"
+                class="mb-1"
+                type="email"
+                name="email"
+                value={form?.email ?? ''}
+                placeholder="you@example.com"
+                autocomplete="email"
+                required
+            />
+            <label for="login-password" class="text-xs font-semibold text-text-2">Пароль</label>
+            <PasswordInput id="login-password" placeholder="Пароль" autocomplete="current-password" />
+            <button type="submit" class="{btnPrimary} min-h-11 w-full">Войти</button>
+        </form>
+    </details>
 </div>

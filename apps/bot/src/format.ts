@@ -51,3 +51,14 @@ export function dashboardButton(path = ''): { reply_markup?: InlineKeyboardMarku
     const label = path ? '📓 Открыть запись' : '📓 Открыть дашборд'
     return { reply_markup: { inline_keyboard: [[{ text: label, url: `${base}${path}` }]] } }
 }
+
+// The token already carries the session, so this link logs the person in on
+// arrival — /auth/confirm on the dashboard knows how to spend a magiclink hash.
+export function loginButton(token: string): { reply_markup?: InlineKeyboardMarkup } {
+    const base = env.PUBLIC_DASHBOARD_URL
+    if (!base) {
+        return {}
+    }
+    const url = `${base}/auth/confirm?token_hash=${encodeURIComponent(token)}&type=magiclink`
+    return { reply_markup: { inline_keyboard: [[{ text: '📓 Открыть журнал', url }]] } }
+}

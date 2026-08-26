@@ -1,12 +1,13 @@
 <script lang="ts">
     import { page } from '$app/state'
+    import PasswordInput from '$lib/components/PasswordInput.svelte'
     import { btnPrimary, btnSecondary, calloutError, calloutReasoning, chip } from '$lib/ui'
 
     import type { ActionData, PageData } from './$types'
 
     const { data, form }: { data: PageData; form: ActionData } = $props()
     const catsSaved = $derived(page.url.searchParams.get('cats') === '1')
-    const tgUnlinked = $derived(page.url.searchParams.get('tg_unlinked') === '1')
+    const emailPending = $derived(page.url.searchParams.get('email_pending') === '1')
     const lastUpdated = $derived(formatDate(data.profile.updated_at))
 
     const tgCode = $derived(page.url.searchParams.get('tg_code'))
@@ -23,12 +24,10 @@
     <span class="text-muted">обновлён {lastUpdated}</span>
 </div>
 
-<p class="mb-3.5 text-[13px] text-muted">Свободный текст о себе. Сейчас нигде не используется — см. ROADMAP.</p>
-
-{#if tgUnlinked || catsSaved}
+{#if catsSaved || emailPending}
     <p class={calloutReasoning}>
-        {#if tgUnlinked}Telegram отвязан.{/if}
         {#if catsSaved}Категории обновлены.{/if}
+        {#if emailPending}Пароль сохранён. Проверь почту — по ссылке из письма адрес подтвердится.{/if}
     </p>
 {/if}
 {#if form?.error}
@@ -65,20 +64,36 @@
 </section>
 
 <section class="mb-9 pt-1">
+    <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">Вход по почте</h2>
+    {#if data.hasRealEmail}
+        <p class="text-[13px] text-muted">
+            Привязана <strong>{data.email}</strong> — можно входить почтой и паролем, не только из Telegram.
+        </p>
+    {:else}
+        <p class="mb-3.5 max-w-[62ch] text-[13px] leading-[1.6] text-muted">
+            Сейчас войти можно только из Telegram. Привяжи почту — она пригодится, если доступ к Telegram пропадёт.
+        </p>
+        <form method="POST" action="?/attachEmail" class="grid max-w-90 gap-2.25">
+            <label for="attach-email" class="text-xs font-semibold text-text-2">Email</label>
+            <input id="attach-email" class="mb-1" type="email" name="email" placeholder="you@example.com" required />
+            <label for="attach-password" class="text-xs font-semibold text-text-2">Пароль</label>
+            <PasswordInput
+                id="attach-password"
+                placeholder="Не короче 8 символов"
+                autocomplete="new-password"
+                minlength={8}
+            />
+            <button type="submit" class={btnPrimary}>Привязать</button>
+        </form>
+    {/if}
+</section>
+
+<section class="mb-9 pt-1">
     <h2 class="mb-3 font-serif text-[17px] font-medium italic text-text-2">Telegram-бот</h2>
     {#if data.telegramLink}
         <p class="mb-3 text-[13px] text-muted">
             Бот привязан. Отправляй голосовые и текст — они попадут в твой журнал.
         </p>
-        <form
-            method="POST"
-            action="?/unlinkTelegram"
-            onsubmit={(ev) => {
-                if (!confirm('Отвязать Telegram от этого аккаунта?')) ev.preventDefault()
-            }}
-        >
-            <button type="submit" class={btnSecondary}>Отвязать</button>
-        </form>
     {:else if tgLink}
         <p class="mb-3 text-[13px] text-muted">
             Открой ссылку в Telegram и нажми Start — это привяжет бота к твоему аккаунту. Ссылка одноразовая.

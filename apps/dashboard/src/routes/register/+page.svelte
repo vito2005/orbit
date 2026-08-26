@@ -1,48 +1,23 @@
 <script lang="ts">
     import OrbitBrand from '$lib/components/OrbitBrand.svelte'
-    import PasswordInput from '$lib/components/PasswordInput.svelte'
-    import { btnPrimary, calloutError, calloutReasoning } from '$lib/ui'
+    import { btnPrimary } from '$lib/ui'
 
-    import type { ActionData } from './$types'
+    import type { PageData } from './$types'
 
-    const { form }: { form: ActionData } = $props()
+    const { data }: { data: PageData } = $props()
+    const botLink = $derived(data.botLink)
 </script>
 
 <div
     class="mx-auto mt-[max(8vh,50px)] w-[min(100%,440px)] rounded-3xl border border-border bg-surface/90 p-7 shadow-[0_28px_80px_rgba(72,53,31,0.14)]"
 >
     <div class="mb-8.5 w-fit"><OrbitBrand /></div>
-    <h1 class="mb-1.75 font-serif text-[33px] font-medium tracking-[-0.03em]">Создать аккаунт</h1>
-    <p class="mb-7 text-text-2">Скидывай идеи голосом или текстом — они не потеряются.</p>
-    {#if form?.sent}
-        <div class={calloutReasoning}>
-            Письмо с подтверждением отправлено на <strong>{form.email}</strong>. Открой ссылку из письма, чтобы войти.
-        </div>
-    {:else}
-        {#if form?.error}
-            <div class={calloutError}>{form.error}</div>
-        {/if}
-        <form method="POST" class="grid gap-2.25">
-            <label for="register-email" class="text-xs font-semibold text-text-2">Email</label>
-            <input
-                id="register-email"
-                class="mb-1"
-                type="email"
-                name="email"
-                value={form?.email ?? ''}
-                placeholder="you@example.com"
-                autocomplete="email"
-                required
-            />
-            <label for="register-password" class="text-xs font-semibold text-text-2">Пароль</label>
-            <PasswordInput
-                id="register-password"
-                placeholder="Минимум 6 символов"
-                autocomplete="new-password"
-                minlength={6}
-            />
-            <button type="submit" class="{btnPrimary} min-h-11 w-full">Зарегистрироваться</button>
-        </form>
+    <h1 class="mb-1.75 font-serif text-[33px] font-medium tracking-[-0.03em]">Аккаунт создаётся в боте</h1>
+    <p class="mb-7 leading-[1.6] text-text-2">
+        Напиши боту в Telegram — аккаунт появится сам, и можно сразу диктовать. Ничего заполнять не нужно.
+    </p>
+    {#if botLink}
+        <a href={botLink} class="{btnPrimary} min-h-11 w-full no-underline hover:no-underline">Открыть бота</a>
     {/if}
     <p class="mt-5 text-center text-[13px] text-text-2">
         Уже есть аккаунт? <a href="/login">Войти</a>

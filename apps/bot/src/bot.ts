@@ -1,21 +1,34 @@
 import {
     consumeTelegramLinkCode,
+    createDashboardLoginToken,
+    createUserForTelegram,
     env,
-    getProfileFor,
     getServiceClient,
     linkTelegramUser,
     resolveTelegramUser,
+    TELEGRAM_LOGIN_PAYLOAD,
 } from '@orbit/shared'
 import { type Context, Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 
-import { categoryLabel, dashboardButton, formatSaved } from './format.ts'
+import { dashboardButton, formatSaved, loginButton } from './format.ts'
 import { log } from './log.ts'
 import { processText, processVoice } from './process.ts'
 
 interface BotContext extends Context {
-    state: { userId?: string }
+    state: { userId?: string; justCreated?: boolean }
 }
+
+// Said once, right after the account appears — the person has not asked for a
+// tour, so it stays to what they need next: send something, and how to get back in.
+const WELCOME = [
+    '👋 Аккаунт создан — можно диктовать.',
+    '',
+    'Присылай голосовое или текст — расшифрую, разберу и сохраню.',
+    '',
+    '/dashboard — открыть журнал, вход прямо здесь.',
+    'В профиле можно привязать почту и заходить ещё и по ней.',
+].join('\n')
 
 // Telegram hands over files up to 20 MB — roughly three hours of speech. That
 // bills three times over: Whisper by the second, the transcript by the token,
@@ -37,6 +50,7 @@ const RETRY_HINT: Record<string, string> = {
     voice: '⚠️ Не смог обработать голосовое. Оно осталось в чате — пришли ещё раз.',
     audio: '⚠️ Не смог обработать аудио. Оно осталось в чате — пришли ещё раз.',
     text: '⚠️ Не смог обработать сообщение. Пришли ещё раз.',
+    dashboard: '⚠️ Не смог собрать ссылку на журнал. Попробуй ещё раз.',
 }
 
 async function reportFailure(bot: Telegraf<BotContext>, ctx: BotContext, kind: string, err: unknown): Promise<void> {
@@ -67,8 +81,9 @@ export function createBot(): Telegraf<BotContext> {
     const bot = new Telegraf<BotContext>(env.TELEGRAM_BOT_TOKEN)
     const supabase = getServiceClient()
 
-    // Resolve the Telegram user to a linked account. Linked → carry the user id
-    // on ctx.state. Unlinked → only /start (to bind a code) is allowed through.
+    // Resolve the Telegram user to an account, creating one if this Telegram is
+    // new. The bot is the only way to sign up, which is what keeps a person from
+    // ending up with two accounts and half their entries in the one they can't see.
     bot.use(async (ctx, next) => {
         const telegramId = ctx.from?.id
         if (!telegramId) {
@@ -79,21 +94,50 @@ export function createBot(): Telegraf<BotContext> {
             ctx.state.userId = userId
             return next()
         }
+        // `/start <code>` binds this Telegram to an account that already exists,
+        // so it has to run before we create anything — otherwise the fresh
+        // account is orphaned the moment the code is consumed. The login payload
+        // is not a code: someone arriving that way for the first time still needs
+        // an account before they can be sent into one.
         const text = ctx.message && 'text' in ctx.message ? ctx.message.text : ''
-        if (text.startsWith('/start')) {
+        const payload = text.startsWith('/start') ? text.slice('/start'.length).trim() : ''
+        if (payload && payload !== TELEGRAM_LOGIN_PAYLOAD) {
             return next()
         }
-        await ctx.reply('Аккаунт не привязан. Открой дашборд → Профиль → Подключить Telegram и перейди по ссылке.')
+        ctx.state.userId = await createUserForTelegram(supabase, telegramId, ctx.from?.username)
+        ctx.state.justCreated = true
+        log.info(`New account from telegram ${telegramId}`)
+        await ctx.reply(WELCOME)
+        return next()
     })
 
+    // Both the /dashboard command and the site's Telegram button end here.
+    async function sendLoginLink(ctx: BotContext): Promise<void> {
+        try {
+            const token = await createDashboardLoginToken(supabase, ctx.state.userId!)
+            const button = loginButton(token)
+            if (!button.reply_markup) {
+                await ctx.reply('Адрес дашборда не настроен.')
+                return
+            }
+            await ctx.reply('Твой журнал — ссылка работает час:', button)
+        } catch (err) {
+            await reportFailure(bot, ctx, 'dashboard', err)
+        }
+    }
+
     bot.start(async (ctx) => {
-        if (ctx.state.userId) {
-            await ctx.reply('👋 Аккаунт уже привязан. Присылай голос или текст.')
+        const code = ctx.message.text.slice('/start'.length).trim()
+        if (code === TELEGRAM_LOGIN_PAYLOAD) {
+            await sendLoginLink(ctx)
             return
         }
-        const code = ctx.message.text.split(' ').slice(1).join(' ').trim()
         if (!code) {
-            await ctx.reply('Привет! Чтобы привязать аккаунт, зайди в дашборд → Профиль → Подключить Telegram.')
+            // A brand-new account has just been shown WELCOME by the middleware,
+            // which already says all of this — no need to say it twice.
+            if (!ctx.state.justCreated) {
+                await ctx.reply('Присылай голос или текст — сохраню в твой журнал.')
+            }
             return
         }
         const userId = await consumeTelegramLinkCode(supabase, code)
@@ -105,22 +149,7 @@ export function createBot(): Telegraf<BotContext> {
         await ctx.reply('✅ Аккаунт привязан. Присылай голос или текст — я сохраню в твой журнал.')
     })
 
-    bot.command('dashboard', async (ctx) => {
-        const button = dashboardButton()
-        if (!button.reply_markup) {
-            await ctx.reply('Адрес дашборда не настроен.')
-            return
-        }
-        await ctx.reply('Твой журнал:', button)
-    })
-
-    bot.command('categories', async (ctx) => {
-        const profile = await getProfileFor(supabase, ctx.state.userId!)
-        const lines = profile.categories.map((c) => `• ${categoryLabel(c)}`)
-        await ctx.reply(`*Категории:*\n${lines.join('\n')}`, {
-            parse_mode: 'Markdown',
-        })
-    })
+    bot.command('dashboard', (ctx) => sendLoginLink(ctx))
 
     bot.on(message('voice'), async (ctx) => {
         try {

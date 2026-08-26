@@ -53,10 +53,12 @@
                         {item.label}
                     </a>
                 {/each}
-                {#if data.email}
-                    <span class="ml-auto hidden max-w-40 truncate text-[12px] text-muted sm:inline">{data.email}</span>
+                {#if data.accountLabel}
+                    <span class="ml-auto hidden max-w-40 truncate text-[12px] text-muted sm:inline"
+                        >{data.accountLabel}</span
+                    >
                 {/if}
-                <form method="POST" action="/logout" class={data.email ? '' : 'ml-auto'}>
+                <form method="POST" action="/logout" class={data.accountLabel ? '' : 'ml-auto'}>
                     <button
                         type="submit"
                         class="{navBase} cursor-pointer border-0 bg-transparent text-text-2 hover:bg-surface/50 hover:text-text"

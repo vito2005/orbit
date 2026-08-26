@@ -1,14 +1,26 @@
-import { createTelegramLinkCode, env, getProfile, getTelegramLink, saveCategories, unlinkTelegram } from '@orbit/shared'
+import {
+    createTelegramLinkCode,
+    env,
+    getProfile,
+    getTelegramLink,
+    isTelegramEmail,
+    saveCategories,
+} from '@orbit/shared'
 import { fail, redirect } from '@sveltejs/kit'
 
 import type { Actions, PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async ({ locals }) => {
     const [profile, telegramLink] = await Promise.all([getProfile(locals.supabase), getTelegramLink(locals.supabase)])
+    const email = locals.user?.email ?? null
     return {
         profile,
         telegramLink,
         botUsername: env.TELEGRAM_BOT_USERNAME,
+        email,
+        // A synthetic address is not a way in — it exists so Supabase can issue
+        // magic links. Until a real one is attached, Telegram is the only key.
+        hasRealEmail: Boolean(email) && !isTelegramEmail(email),
     }
 }
 
@@ -47,12 +59,26 @@ export const actions: Actions = {
         )
         throw redirect(303, '/profile?cats=1')
     },
+    attachEmail: async ({ request, locals }) => {
+        const data = await request.formData()
+        const email = String(data.get('email') ?? '')
+            .trim()
+            .toLowerCase()
+        const password = String(data.get('password') ?? '')
+        if (password.length < 8) {
+            return fail(400, { error: 'Пароль должен быть не короче 8 символов.' })
+        }
+        // The user's own session does this — no admin key on the dashboard. The
+        // password applies at once; the address waits for the confirmation link,
+        // which is the point: a recovery key is worthless unproven.
+        const { error } = await locals.supabase.auth.updateUser({ email, password })
+        if (error) {
+            return fail(400, { error: error.message })
+        }
+        throw redirect(303, '/profile?email_pending=1')
+    },
     connectTelegram: async ({ locals }) => {
         const code = await createTelegramLinkCode(locals.supabase, locals.user!.id)
         throw redirect(303, `/profile?tg_code=${code}`)
-    },
-    unlinkTelegram: async ({ locals }) => {
-        await unlinkTelegram(locals.supabase, locals.user!.id)
-        throw redirect(303, '/profile?tg_unlinked=1')
     },
 }

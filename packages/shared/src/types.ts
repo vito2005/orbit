@@ -75,3 +75,8 @@ export interface TelegramLink {
     telegram_id: number
     created_at: string
 }
+
+// The ?start= payload behind the dashboard's Telegram button. Telegram delivers
+// it as `/start login`, so one tap in the browser lands the person in the bot
+// with a login link already on its way — no command to remember and type.
+export const TELEGRAM_LOGIN_PAYLOAD = 'login'

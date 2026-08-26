@@ -13,10 +13,7 @@ async function main() {
     // Registers the commands in Telegram's own menu, so they are discoverable
     // instead of something the user has to remember.
     await bot.telegram
-        .setMyCommands([
-            { command: 'dashboard', description: 'Открыть журнал' },
-            { command: 'categories', description: 'Мои категории' },
-        ])
+        .setMyCommands([{ command: 'dashboard', description: 'Открыть журнал' }])
         .catch((err) => log.error('setMyCommands failed', err))
 
     const app = new Elysia()
