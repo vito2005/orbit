@@ -40,25 +40,18 @@ function escape(text: string): string {
     return text.replace(/([*_`[])/g, '\\$1')
 }
 
-// Telegram has no persistent button that opens a URL — reply keyboards can only
-// send text and the menu button only opens a Mini App — so the deep link rides
-// under the message that announces the entry.
-export function dashboardButton(path = ''): { reply_markup?: InlineKeyboardMarkup } {
+// Telegram's in-app browser keeps its own cookies, so a plain link would land
+// on the login page rather than the entry. The token carries the session:
+// /auth/confirm spends the magiclink hash and forwards to `next`.
+export function loginButton(token: string, next = ''): { reply_markup?: InlineKeyboardMarkup } {
     const base = env.PUBLIC_DASHBOARD_URL
     if (!base) {
         return {}
     }
-    const label = path ? '📓 Открыть запись' : '📓 Открыть дашборд'
-    return { reply_markup: { inline_keyboard: [[{ text: label, url: `${base}${path}` }]] } }
-}
-
-// The token already carries the session, so this link logs the person in on
-// arrival — /auth/confirm on the dashboard knows how to spend a magiclink hash.
-export function loginButton(token: string): { reply_markup?: InlineKeyboardMarkup } {
-    const base = env.PUBLIC_DASHBOARD_URL
-    if (!base) {
-        return {}
+    const params = new URLSearchParams({ token_hash: token, type: 'magiclink' })
+    if (next) {
+        params.set('next', next)
     }
-    const url = `${base}/auth/confirm?token_hash=${encodeURIComponent(token)}&type=magiclink`
-    return { reply_markup: { inline_keyboard: [[{ text: '📓 Открыть журнал', url }]] } }
+    const label = next ? '📓 Открыть запись' : '📓 Открыть журнал'
+    return { reply_markup: { inline_keyboard: [[{ text: label, url: `${base}/auth/confirm?${params}` }]] } }
 }

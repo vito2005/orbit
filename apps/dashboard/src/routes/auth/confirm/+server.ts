@@ -18,5 +18,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             throw redirect(303, next)
         }
     }
-    throw redirect(303, '/login')
+    // Keep `next` on failure too: an expired link should still put the person
+    // where they were headed once they sign in.
+    throw redirect(303, `/login?next=${encodeURIComponent(next)}`)
 }

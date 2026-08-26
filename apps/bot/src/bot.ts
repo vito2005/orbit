@@ -11,7 +11,7 @@ import {
 import { type Context, Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 
-import { dashboardButton, formatSaved, loginButton } from './format.ts'
+import { formatSaved, loginButton } from './format.ts'
 import { log } from './log.ts'
 import { processText, processVoice } from './process.ts'
 
@@ -111,6 +111,18 @@ export function createBot(): Telegraf<BotContext> {
         return next()
     })
 
+    // A capture reply earns a one-tap way in, so the button carries a session of
+    // its own. Minting can fail; losing the button is better than losing the
+    // confirmation that the thought was saved.
+    async function entryButton(userId: string, entryId: string): Promise<ReturnType<typeof loginButton>> {
+        try {
+            return loginButton(await createDashboardLoginToken(supabase, userId), `/entries/${entryId}`)
+        } catch (err) {
+            log.error('entry button failed', err)
+            return {}
+        }
+    }
+
     // Both the /dashboard command and the site's Telegram button end here.
     async function sendLoginLink(ctx: BotContext): Promise<void> {
         try {
@@ -171,7 +183,8 @@ export function createBot(): Telegraf<BotContext> {
                 telegramFileName: ext,
                 telegramMessageId: ctx.message.message_id,
             })
-            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...dashboardButton(`/entries/${entry.id}`) })
+            const markup = await entryButton(ctx.state.userId!, entry.id)
+            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...markup })
         } catch (err) {
             await reportFailure(bot, ctx, 'voice', err)
         }
@@ -196,7 +209,8 @@ export function createBot(): Telegraf<BotContext> {
                 telegramFileName: ctx.message.audio.file_name ?? fileNameFromUrl(link.toString()),
                 telegramMessageId: ctx.message.message_id,
             })
-            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...dashboardButton(`/entries/${entry.id}`) })
+            const markup = await entryButton(ctx.state.userId!, entry.id)
+            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...markup })
         } catch (err) {
             await reportFailure(bot, ctx, 'audio', err)
         }
@@ -212,7 +226,8 @@ export function createBot(): Telegraf<BotContext> {
                 text,
                 telegramMessageId: ctx.message.message_id,
             })
-            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...dashboardButton(`/entries/${entry.id}`) })
+            const markup = await entryButton(ctx.state.userId!, entry.id)
+            await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...markup })
         } catch (err) {
             await reportFailure(bot, ctx, 'text', err)
         }
