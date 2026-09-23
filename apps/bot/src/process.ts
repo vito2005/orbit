@@ -16,7 +16,7 @@ import {
     uploadAudio,
 } from '@orbit/shared'
 
-import { downloadClip, extractAudio, extractFrameGrids } from './clip.ts'
+import { downloadClip, extractAudio, extractCover, extractFrameGrids } from './clip.ts'
 import { log } from './log.ts'
 
 export async function processVoice(args: {
@@ -104,7 +104,7 @@ export const CLIP_DAILY_SECONDS = 600
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export type ClipOutcome =
-    | { kind: 'saved'; translation: Translation }
+    | { kind: 'saved'; translation: Translation; cover: Uint8Array }
     | { kind: 'not-english' }
     | { kind: 'nothing-to-translate' }
     | { kind: 'count-limit' }
@@ -134,7 +134,11 @@ export async function processClip(args: {
             return { kind: 'too-long', remainingSeconds }
         }
 
-        const [audio, frames] = await Promise.all([extractAudio(clip.path, dir), extractFrameGrids(clip.path, dir)])
+        const [audio, frames, cover] = await Promise.all([
+            extractAudio(clip.path, dir),
+            extractFrameGrids(clip.path, dir),
+            extractCover(clip.path, dir, clip.durationSeconds),
+        ])
         const transcript = audio ? await transcribeAudio(audio, 'audio.mp3') : ''
         log.info(`Clip ${clip.durationSeconds}s: transcript ${transcript.length} chars, ${frames.length} frame grids`)
 
@@ -151,7 +155,7 @@ export async function processClip(args: {
             duration_seconds: clip.durationSeconds,
         })
         log.info(`Saved translation ${saved.id}`)
-        return { kind: 'saved', translation: saved }
+        return { kind: 'saved', translation: saved, cover }
     } finally {
         await rm(dir, { recursive: true, force: true })
     }

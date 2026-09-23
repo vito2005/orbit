@@ -40,8 +40,12 @@ export function formatSaved(entry: Entry): string {
 // for the escapes.
 const MESSAGE_BUDGET = 3500
 
-export function formatTranslation(translation: Translation): string[] {
-    const lines = [`🎬 ${escape(translation.title)}`, '', ...translation.translation.split('\n').map(escape)]
+// withTitle is false when the title already went out as a cover photo's caption.
+export function formatTranslation(translation: Translation, withTitle = true): string[] {
+    const lines = [
+        ...(withTitle ? [`🎬 ${escape(translation.title)}`, ''] : []),
+        ...translation.translation.split('\n').map(escape),
+    ]
     if (translation.notes.length > 0) {
         lines.push('', '*Что тут не очевидно:*')
         for (const note of translation.notes) {

@@ -214,3 +214,27 @@ export async function extractFrameGrids(videoPath: string, dir: string): Promise
     const names = [...new Bun.Glob('grid-*.jpg').scanSync(dir)].sort()
     return Promise.all(names.map((name) => Bun.file(`${dir}/${name}`).bytes()))
 }
+
+// Instagram links get no preview in Telegram, so the reply brings its own: a
+// frame from the middle, past any black intro or title card.
+export async function extractCover(videoPath: string, dir: string, durationSeconds: number): Promise<Uint8Array> {
+    const coverPath = `${dir}/cover.jpg`
+    await run([
+        'ffmpeg',
+        '-v',
+        'error',
+        '-y',
+        '-ss',
+        String(Math.floor(durationSeconds / 2)),
+        '-i',
+        videoPath,
+        '-frames:v',
+        '1',
+        '-vf',
+        'scale=720:-2',
+        '-q:v',
+        '4',
+        coverPath,
+    ])
+    return Bun.file(coverPath).bytes()
+}

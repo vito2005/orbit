@@ -255,7 +255,8 @@ export function createBot(): Telegraf<BotContext> {
                 await ctx.reply('Видео не на английском — разбора не будет. Перевожу только с английского.')
                 return
             }
-            const messages = formatTranslation(outcome.translation)
+            const coverSent = isInstagram(url) && (await sendCover(ctx, outcome.cover, outcome.translation.title))
+            const messages = formatTranslation(outcome.translation, !coverSent)
             const markup = await openButton(
                 ctx.state.userId!,
                 `/translations/${outcome.translation.id}`,
@@ -297,6 +298,22 @@ export function createBot(): Telegraf<BotContext> {
     })
 
     return bot
+}
+
+// YouTube links already unfurl into a preview in Telegram; Instagram's don't.
+function isInstagram(url: string): boolean {
+    return new URL(url).hostname.endsWith('instagram.com')
+}
+
+// Losing the cover is fine — the translation still goes out, title included.
+async function sendCover(ctx: BotContext, cover: Uint8Array, title: string): Promise<boolean> {
+    try {
+        await ctx.replyWithPhoto({ source: Buffer.from(cover) }, { caption: `🎬 ${title}` })
+        return true
+    } catch (err) {
+        log.error('cover send failed', err)
+        return false
+    }
 }
 
 function fileNameFromUrl(url: string): string {
