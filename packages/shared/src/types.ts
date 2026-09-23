@@ -80,3 +80,29 @@ export interface TelegramLink {
 // it as `/start login`, so one tap in the browser lands the person in the bot
 // with a login link already on its way — no command to remember and type.
 export const TELEGRAM_LOGIN_PAYLOAD = 'login'
+
+// A phrase from the clip that a translation alone would flatten — slang, an
+// idiom, a reference, the mechanics of a joke — with a note in Russian.
+export interface TranslationNote {
+    phrase: string
+    explanation: string
+}
+
+export interface ClipTranslation {
+    title: string
+    summary: string
+    transcript: string
+    translation: string
+    notes: TranslationNote[]
+}
+
+export interface Translation extends ClipTranslation {
+    id: string
+    user_id: string
+    created_at: string
+    telegram_message_id: string | null
+    source_url: string
+    duration_seconds: number
+}
+
+export type NewTranslation = Omit<Translation, 'id' | 'user_id' | 'created_at'> & { user_id: string }

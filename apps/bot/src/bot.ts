@@ -11,9 +11,10 @@ import {
 import { type Context, Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 
-import { formatSaved, loginButton } from './format.ts'
+import { parseClipRequest } from './clip.ts'
+import { formatSaved, formatTranslation, loginButton } from './format.ts'
 import { log } from './log.ts'
-import { processText, processVoice } from './process.ts'
+import { CLIP_DAILY_COUNT, CLIP_DAILY_SECONDS, processClip, processText, processVoice } from './process.ts'
 
 interface BotContext extends Context {
     state: { userId?: string; justCreated?: boolean }
@@ -50,6 +51,7 @@ const RETRY_HINT: Record<string, string> = {
     voice: '⚠️ Не смог обработать голосовое. Оно осталось в чате — пришли ещё раз.',
     audio: '⚠️ Не смог обработать аудио. Оно осталось в чате — пришли ещё раз.',
     text: '⚠️ Не смог обработать сообщение. Пришли ещё раз.',
+    clip: '⚠️ Не смог перевести ролик — может, он закрытый или инста его не отдала. Попробуй ещё раз чуть позже.',
     dashboard: '⚠️ Не смог собрать ссылку на журнал. Попробуй ещё раз.',
 }
 
@@ -114,9 +116,9 @@ export function createBot(): Telegraf<BotContext> {
     // A capture reply earns a one-tap way in, so the button carries a session of
     // its own. Minting can fail; losing the button is better than losing the
     // confirmation that the thought was saved.
-    async function entryButton(userId: string, entryId: string): Promise<ReturnType<typeof loginButton>> {
+    async function openButton(userId: string, path: string, label?: string): Promise<ReturnType<typeof loginButton>> {
         try {
-            return loginButton(await createDashboardLoginToken(supabase, userId), `/entries/${entryId}`)
+            return loginButton(await createDashboardLoginToken(supabase, userId), path, label)
         } catch (err) {
             log.error('entry button failed', err)
             return {}
@@ -183,7 +185,7 @@ export function createBot(): Telegraf<BotContext> {
                 telegramFileName: ext,
                 telegramMessageId: ctx.message.message_id,
             })
-            const markup = await entryButton(ctx.state.userId!, entry.id)
+            const markup = await openButton(ctx.state.userId!, `/entries/${entry.id}`)
             await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...markup })
         } catch (err) {
             await reportFailure(bot, ctx, 'voice', err)
@@ -209,16 +211,56 @@ export function createBot(): Telegraf<BotContext> {
                 telegramFileName: ctx.message.audio.file_name ?? fileNameFromUrl(link.toString()),
                 telegramMessageId: ctx.message.message_id,
             })
-            const markup = await entryButton(ctx.state.userId!, entry.id)
+            const markup = await openButton(ctx.state.userId!, `/entries/${entry.id}`)
             await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...markup })
         } catch (err) {
             await reportFailure(bot, ctx, 'audio', err)
         }
     })
 
+    async function replyWithTranslation(ctx: BotContext, url: string, messageId: number): Promise<void> {
+        try {
+            await ctx.reply('🎬 Скачиваю и перевожу — обычно до минуты.')
+            await ctx.sendChatAction('typing')
+            const outcome = await processClip({ userId: ctx.state.userId!, url, telegramMessageId: messageId })
+            if (outcome.kind === 'count-limit') {
+                await ctx.reply(`⚠️ Уже ${CLIP_DAILY_COUNT} роликов за сутки — это лимит. Пришли этот позже.`)
+                return
+            }
+            if (outcome.kind === 'too-long') {
+                const left = Math.floor(outcome.remainingSeconds / 60)
+                await ctx.reply(
+                    `⚠️ Ролик не влезает в лимит: на сутки осталось ${left} мин из ${CLIP_DAILY_SECONDS / 60}.`,
+                )
+                return
+            }
+            if (outcome.kind === 'not-english') {
+                await ctx.reply('Видео не на английском — разбора не будет. Перевожу только с английского.')
+                return
+            }
+            const messages = formatTranslation(outcome.translation)
+            const markup = await openButton(
+                ctx.state.userId!,
+                `/translations/${outcome.translation.id}`,
+                '📓 Открыть перевод',
+            )
+            for (const [index, text] of messages.entries()) {
+                const isLast = index === messages.length - 1
+                await ctx.reply(text, { parse_mode: 'Markdown', ...(isLast ? markup : {}) })
+            }
+        } catch (err) {
+            await reportFailure(bot, ctx, 'clip', err)
+        }
+    }
+
     bot.on(message('text'), async (ctx) => {
         const text = ctx.message.text.trim()
         if (text.startsWith('/')) return // unknown command
+        const clipUrl = parseClipRequest(text)
+        if (clipUrl) {
+            await replyWithTranslation(ctx, clipUrl, ctx.message.message_id)
+            return
+        }
         try {
             await ctx.sendChatAction('typing')
             const entry = await processText({
@@ -226,7 +268,7 @@ export function createBot(): Telegraf<BotContext> {
                 text,
                 telegramMessageId: ctx.message.message_id,
             })
-            const markup = await entryButton(ctx.state.userId!, entry.id)
+            const markup = await openButton(ctx.state.userId!, `/entries/${entry.id}`)
             await ctx.reply(formatSaved(entry), { parse_mode: 'Markdown', ...markup })
         } catch (err) {
             await reportFailure(bot, ctx, 'text', err)

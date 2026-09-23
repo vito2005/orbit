@@ -38,6 +38,9 @@ orbit/
 - Your Telegram user ID (DM [@userinfobot](https://t.me/userinfobot) to get it)
 - An OpenAI API key with access to Whisper and a chat model
 - A Supabase project (free tier is fine)
+- `ffmpeg` on the bot's `PATH` (clip translation cuts audio and frames with it).
+  `yt-dlp` is not a prerequisite — the bot fetches the latest release binary on
+  first use.
 
 ## Setup
 
@@ -106,6 +109,19 @@ Register at `/register`, then link the Telegram bot from the profile page.
 5. **Reply.** The bot replies with the title, category, priority, and next
    action so you can confirm at a glance.
 
+### Translating reels
+
+Send the bot an Instagram reel or YouTube Shorts link — alone, or with
+"переведи" — and it downloads the clip to a temp folder, transcribes the audio
+with Whisper, reads burned-in subtitles off frames sampled once a second, and
+asks `gpt-5.4-mini` for an English transcript, a Russian translation and notes
+on slang and jokes. The result goes to `public.translations` (the dashboard's
+"Переводы" page), not to entries; the video is deleted right after. A link with
+any other text is saved as a normal idea. Non-English clips are skipped.
+
+Each user gets 5 clips and 10 minutes per rolling 24 hours — roughly 3 cents
+per 2-minute clip.
+
 ## Bot commands
 
 - `/start` — short help text
@@ -125,6 +141,9 @@ This project is intentionally minimal. If you want to deploy it, the easiest
 path is:
 
 - Run the bot as a long-running process (e.g. a small VPS, Fly.io, Railway).
+  It needs `ffmpeg`: on Railway (Railpack) set
+  `RAILPACK_DEPLOY_APT_PACKAGES=ffmpeg` on the bot service. The host must be
+  outside Russia — Instagram and OpenAI are both blocked there.
 - Build the dashboard with `bun run dashboard:build` and serve `apps/dashboard/build/index.js` behind a reverse proxy that adds TLS + basic auth. The built-in `DASHBOARD_PASSWORD` is good enough for local-only use.
 
 ## Roadmap / not in v1

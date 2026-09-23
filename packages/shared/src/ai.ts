@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI, { toFile } from 'openai'
 
 import { env } from './env'
-import { type AIAnalysis, DEFAULT_CATEGORIES, ENERGIES, type Energy } from './types'
+import { type AIAnalysis, type ClipTranslation, DEFAULT_CATEGORIES, ENERGIES, type Energy } from './types'
 
 let openaiCached: OpenAI | null = null
 let anthropicCached: Anthropic | null = null
@@ -65,6 +65,8 @@ interface NormalizedChatParams {
     model?: string
     systemMessage: string
     userContent: string
+    // JPEG bytes, attached to the user turn after the text.
+    images?: Uint8Array[]
     jsonMode?: boolean
     temperature?: number
 }
@@ -83,7 +85,16 @@ async function callOpenAI(params: NormalizedChatParams & { model: string }): Pro
         temperature: params.temperature ?? 0.3,
         messages: [
             { role: 'system', content: params.systemMessage },
-            { role: 'user', content: params.userContent },
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: params.userContent },
+                    ...(params.images ?? []).map((image) => ({
+                        type: 'image_url' as const,
+                        image_url: { url: `data:image/jpeg;base64,${Buffer.from(image).toString('base64')}` },
+                    })),
+                ],
+            },
         ],
     })
     const text = completion.choices[0]?.message?.content ?? ''
@@ -104,10 +115,25 @@ async function callAnthropic(params: NormalizedChatParams & { model: string }): 
 
     const response = await anthropicClient().messages.create({
         model: params.model,
-        max_tokens: 4096,
+        max_tokens: 8192,
         system: systemPrompt,
         temperature: params.temperature ?? 0.3,
-        messages: [{ role: 'user', content: params.userContent }],
+        messages: [
+            {
+                role: 'user',
+                content: [
+                    ...(params.images ?? []).map((image) => ({
+                        type: 'image' as const,
+                        source: {
+                            type: 'base64' as const,
+                            media_type: 'image/jpeg' as const,
+                            data: Buffer.from(image).toString('base64'),
+                        },
+                    })),
+                    { type: 'text' as const, text: params.userContent },
+                ],
+            },
+        ],
     })
 
     let text = ''
@@ -250,5 +276,86 @@ function normalizeAnalysis(input: unknown, transcript: string, categories: strin
                 : null,
         energy,
         content_potential: cp,
+    }
+}
+
+const CLIP_SYSTEM_PROMPT = `You translate short English videos (Instagram reels, mostly stand-up and interviews) for a Russian speaker with intermediate English.
+
+You get two sources for the same clip:
+1. An automatic speech transcript. It mishears names, slang and overlapping voices.
+2. Images, each a grid of frames sampled once per second — read left to right, top to bottom, in order. Frames are cropped to the band where burned-in subtitles usually sit. Many clips have no subtitles; then the frames are just picture.
+
+Return STRICT JSON:
+
+{
+  "english": boolean,      // false if the speech is not English, or the subtitles are not English
+  "title": string,         // Russian, <= 80 chars, what the clip is about
+  "summary": string,       // Russian, 1-2 sentences
+  "transcript": string,    // the most accurate English text of what is said
+  "translation": string,   // Russian translation
+  "notes": [{ "phrase": string, "explanation": string }]
+}
+
+When "english" is false, return empty strings and an empty notes array.
+
+transcript: where subtitles exist they are the authority for wording, names and slang; the audio transcript fills whatever the subtitles miss. Keep the words exactly as spoken — never fix broken grammar or an accent, it is often the joke. One sentence per row. When several people talk, start each speaker's turn with "— " and never put a question and its answer on the same row.
+
+translation: natural spoken Russian that keeps the joke working — the rhythm of the setup and the punchline, the swearing and the tone. Not word for word. If someone speaks broken English on purpose, make their Russian broken in the same way. Same rows as the transcript, with the same "— " marks.
+
+notes: slang, idioms, wordplay, cultural and pop-culture references, and why a joke lands when that is not obvious from the translation. "phrase" is the original English, "explanation" is short Russian. Only what a Russian speaker would actually miss — none is fine, never more than 8.
+
+Return JSON only. No prose, no markdown fences.`
+
+// Pinned rather than read from the chat-model env: on three test reels it kept
+// accents and swearing as well as claude-sonnet-4-6, at a third of the latency
+// and about a fifth of the price. gpt-5.4-nano muddled names and softened jokes.
+const CLIP_MODEL = 'gpt-5.4-mini'
+
+// frames: JPEG grids of subtitle-band crops, in playback order.
+export async function translateClip(transcript: string, frames: Uint8Array[]): Promise<ClipTranslation | null> {
+    const result = await chatCompletion(
+        {
+            model: CLIP_MODEL,
+            systemMessage: CLIP_SYSTEM_PROMPT,
+            userContent: `Audio transcript:\n${transcript || '(no speech detected)'}`,
+            images: frames,
+            jsonMode: true,
+            temperature: 0.3,
+        },
+        'translateClip',
+    )
+
+    let parsed: unknown
+    try {
+        parsed = JSON.parse(result.text || '{}')
+    } catch {
+        throw new Error(`AI returned non-JSON: ${result.text.slice(0, 200)}`)
+    }
+    return normalizeClipTranslation(parsed, transcript)
+}
+
+function normalizeClipTranslation(input: unknown, transcript: string): ClipTranslation | null {
+    const obj = (input ?? {}) as Record<string, unknown>
+    const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
+
+    const translation = text(obj.translation)
+    if (obj.english === false || translation.length === 0) {
+        return null
+    }
+
+    const notes = Array.isArray(obj.notes)
+        ? (obj.notes as unknown[])
+              .map((note) => (note ?? {}) as Record<string, unknown>)
+              .map((note) => ({ phrase: text(note.phrase), explanation: text(note.explanation) }))
+              .filter((note) => note.phrase.length > 0 && note.explanation.length > 0)
+              .slice(0, 8)
+        : []
+
+    return {
+        title: text(obj.title).slice(0, 120) || translation.split('\n')[0].slice(0, 80),
+        summary: text(obj.summary),
+        transcript: text(obj.transcript) || transcript,
+        translation,
+        notes,
     }
 }

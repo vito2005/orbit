@@ -1,4 +1,4 @@
-import { type Entry, env } from '@orbit/shared'
+import { type Entry, env, type Translation } from '@orbit/shared'
 import type { InlineKeyboardMarkup } from 'telegraf/types'
 
 // The shipped defaults plus '3d' / 'стендап', which this account added itself —
@@ -35,6 +35,33 @@ export function formatSaved(entry: Entry): string {
     return lines.join('\n')
 }
 
+// Telegram caps a message at 4096 characters; a three-minute interview with
+// notes runs past that, so the reply is cut on line boundaries with headroom
+// for the escapes.
+const MESSAGE_BUDGET = 3500
+
+export function formatTranslation(translation: Translation): string[] {
+    const lines = [`🎬 ${escape(translation.title)}`, '', ...translation.translation.split('\n').map(escape)]
+    if (translation.notes.length > 0) {
+        lines.push('', '*Что тут не очевидно:*')
+        for (const note of translation.notes) {
+            lines.push(`• «${escape(note.phrase)}» — ${escape(note.explanation)}`)
+        }
+    }
+
+    const messages: string[] = []
+    let current = ''
+    for (const line of lines) {
+        if (current && current.length + line.length + 1 > MESSAGE_BUDGET) {
+            messages.push(current)
+            current = ''
+        }
+        current = current ? `${current}\n${line}` : line
+    }
+    messages.push(current)
+    return messages
+}
+
 // Telegram MarkdownV1 — escape only the characters that break parsing
 function escape(text: string): string {
     return text.replace(/([*_`[])/g, '\\$1')
@@ -43,7 +70,11 @@ function escape(text: string): string {
 // Telegram's in-app browser keeps its own cookies, so a plain link would land
 // on the login page rather than the entry. The token carries the session:
 // /auth/confirm spends the magiclink hash and forwards to `next`.
-export function loginButton(token: string, next = ''): { reply_markup?: InlineKeyboardMarkup } {
+export function loginButton(
+    token: string,
+    next = '',
+    label = next ? '📓 Открыть запись' : '📓 Открыть журнал',
+): { reply_markup?: InlineKeyboardMarkup } {
     const base = env.PUBLIC_DASHBOARD_URL
     if (!base) {
         return {}
@@ -52,6 +83,5 @@ export function loginButton(token: string, next = ''): { reply_markup?: InlineKe
     if (next) {
         params.set('next', next)
     }
-    const label = next ? '📓 Открыть запись' : '📓 Открыть журнал'
     return { reply_markup: { inline_keyboard: [[{ text: label, url: `${base}/auth/confirm?${params}` }]] } }
 }

@@ -15,6 +15,7 @@
     const navItems = [
         { href: '/inbox', label: 'Входящие' },
         { href: '/inbox?priority=archive', label: 'Архив' },
+        { href: '/translations', label: 'Переводы' },
         { href: '/profile', label: 'Профиль' },
     ]
 

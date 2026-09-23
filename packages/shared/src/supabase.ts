@@ -6,7 +6,9 @@ import {
     type Entry,
     type EntryPatch,
     type NewEntry,
+    type NewTranslation,
     type TelegramLink,
+    type Translation,
     type UserProfile,
 } from './types'
 
@@ -164,6 +166,49 @@ export async function deleteEntry(client: SupabaseClient, id: string): Promise<v
 export async function updateEntry(client: SupabaseClient, id: string, patch: EntryPatch): Promise<void> {
     const { error } = await client.from('entries').update(patch).eq('id', id)
     if (error) throw new Error(`DB entry update failed: ${error.message}`)
+}
+
+export async function insertTranslation(client: SupabaseClient, translation: NewTranslation): Promise<Translation> {
+    const { data, error } = await client.from('translations').insert(translation).select().single()
+    if (error) throw new Error(`DB translation insert failed: ${error.message}`)
+    return data as Translation
+}
+
+export async function listTranslations(client: SupabaseClient): Promise<Translation[]> {
+    const { data, error } = await client
+        .from('translations')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200)
+    if (error) throw new Error(`DB translation list failed: ${error.message}`)
+    return (data ?? []) as Translation[]
+}
+
+export async function getTranslation(client: SupabaseClient, id: string): Promise<Translation | null> {
+    const { data, error } = await client.from('translations').select('*').eq('id', id).maybeSingle()
+    if (error) throw new Error(`DB translation get failed: ${error.message}`)
+    return (data as Translation | null) ?? null
+}
+
+export async function deleteTranslation(client: SupabaseClient, id: string): Promise<void> {
+    const { error } = await client.from('translations').delete().eq('id', id)
+    if (error) throw new Error(`DB translation delete failed: ${error.message}`)
+}
+
+// Service-role only (the bot), hence the explicit user filter.
+export async function translationUsageSince(
+    client: SupabaseClient,
+    userId: string,
+    since: Date,
+): Promise<{ count: number; seconds: number }> {
+    const { data, error } = await client
+        .from('translations')
+        .select('duration_seconds')
+        .eq('user_id', userId)
+        .gte('created_at', since.toISOString())
+    if (error) throw new Error(`DB translation usage failed: ${error.message}`)
+    const rows = (data ?? []) as { duration_seconds: number }[]
+    return { count: rows.length, seconds: rows.reduce((sum, row) => sum + row.duration_seconds, 0) }
 }
 
 const FIELDS = 'user_id, categories, updated_at'
