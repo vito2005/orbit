@@ -90,12 +90,25 @@ async function run(cmd: string[], timeoutMs = 120_000): Promise<string> {
 // A three-minute 720p reel is ~25 MB; anything past this is not a reel.
 const MAX_CLIP_SIZE = '100M'
 
-// Private accounts, deleted posts, age or region gates — and, from a datacenter
-// IP, sites asking to log in. Retrying later won't help the user with any of
-// these, so they get their own reply.
+// The site refusing our server, not this clip: YouTube challenges datacenter
+// IPs with "confirm you're not a bot". Checked first — that message also says
+// "sign in", which would otherwise read as a private video.
+const BLOCKED = /not a bot|too many requests|HTTP Error 429/i
+
+// Private accounts, deleted posts, age or region gates. Retrying later won't
+// help the user with any of these, so they get their own reply.
 const UNAVAILABLE = /empty media response|login required|not available|unavailable|private|sign in/i
 
+export class ClipBlockedError extends Error {}
 export class ClipUnavailableError extends Error {}
+
+function classifyDownloadError(err: unknown): unknown {
+    const message = (err as Error).message
+    if (BLOCKED.test(message)) {
+        return new ClipBlockedError(message)
+    }
+    return UNAVAILABLE.test(message) ? new ClipUnavailableError(message) : err
+}
 
 export interface DownloadedClip {
     path: string
@@ -138,8 +151,7 @@ export async function downloadClip(url: string, dir: string, maxSeconds: number)
         try {
             output = await run([ytDlp, ...args])
         } catch (retryErr) {
-            const message = (retryErr as Error).message
-            throw UNAVAILABLE.test(message) ? new ClipUnavailableError(message) : retryErr
+            throw classifyDownloadError(retryErr)
         }
     }
     const path = output.trim()

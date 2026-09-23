@@ -11,7 +11,7 @@ import {
 import { type Context, Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 
-import { ClipUnavailableError, parseClipRequest } from './clip.ts'
+import { ClipBlockedError, ClipUnavailableError, parseClipRequest } from './clip.ts'
 import { formatSaved, formatTranslation, loginButton } from './format.ts'
 import { log } from './log.ts'
 import { CLIP_DAILY_COUNT, CLIP_DAILY_SECONDS, processClip, processText, processVoice } from './process.ts'
@@ -52,10 +52,20 @@ const RETRY_HINT: Record<string, string> = {
     audio: '⚠️ Не смог обработать аудио. Оно осталось в чате — пришли ещё раз.',
     text: '⚠️ Не смог обработать сообщение. Пришли ещё раз.',
     clip: '⚠️ Не смог перевести ролик. Попробуй ещё раз чуть позже.',
+    'clip-blocked':
+        '⚠️ Площадка сейчас не даёт нашему серверу скачать видео — это их защита от ботов, с роликом всё в порядке. ' +
+        'Попробуй позже.',
     'clip-unavailable':
         '⚠️ Не удалось скачать видео — похоже, аккаунт закрытый или у ролика ограничения (возраст, регион). ' +
         'Проверь, открывается ли он без входа в аккаунт: если нет, я его не достану.',
     dashboard: '⚠️ Не смог собрать ссылку на журнал. Попробуй ещё раз.',
+}
+
+function clipFailureKind(err: unknown): string {
+    if (err instanceof ClipBlockedError) {
+        return 'clip-blocked'
+    }
+    return err instanceof ClipUnavailableError ? 'clip-unavailable' : 'clip'
 }
 
 async function reportFailure(bot: Telegraf<BotContext>, ctx: BotContext, kind: string, err: unknown): Promise<void> {
@@ -256,7 +266,7 @@ export function createBot(): Telegraf<BotContext> {
                 await ctx.reply(text, { parse_mode: 'Markdown', ...(isLast ? markup : {}) })
             }
         } catch (err) {
-            await reportFailure(bot, ctx, err instanceof ClipUnavailableError ? 'clip-unavailable' : 'clip', err)
+            await reportFailure(bot, ctx, clipFailureKind(err), err)
         }
     }
 
