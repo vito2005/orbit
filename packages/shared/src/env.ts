@@ -67,6 +67,11 @@ export const env = {
     get SUPABASE_STORAGE_BUCKET() {
         return optional('SUPABASE_STORAGE_BUCKET', 'orbit-audio')
     },
+    // Optional: http://user:pass@host:port. YouTube answers Railway's IP with a
+    // bot check, so YouTube downloads go through this proxy; Instagram doesn't.
+    get CLIP_PROXY_URL() {
+        return optional('CLIP_PROXY_URL', '')
+    },
     get BOT_PORT() {
         return Number(optional('BOT_PORT', '3001'))
     },

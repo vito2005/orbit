@@ -75,6 +75,7 @@ cp .env.example .env
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-side only; bot + admin ops)        |
 | `SUPABASE_ANON_KEY`         | Anon key — dashboard uses it with the user session (RLS)    |
 | `SUPABASE_STORAGE_BUCKET`   | Bucket for raw audio (default `orbit-audio`)                |
+| `CLIP_PROXY_URL`            | Optional — proxy for YouTube Shorts downloads (bot check)   |
 | `BOT_PORT`                  | Port for the bot's HTTP health endpoint (default `3001`)    |
 
 ## Running locally

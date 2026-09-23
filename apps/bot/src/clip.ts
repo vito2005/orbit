@@ -1,6 +1,8 @@
 import { chmod, rename } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 
+import { env } from '@orbit/shared'
+
 import { log } from './log.ts'
 
 // Reels and Shorts only: a plain YouTube video or an Instagram photo post is
@@ -115,6 +117,17 @@ export interface DownloadedClip {
     durationSeconds: number
 }
 
+// YouTube answers Railway's IP with "confirm you're not a bot", so its
+// downloads go through CLIP_PROXY_URL; the app clients are challenged less
+// often on top of that. Instagram works direct and stays off the proxy.
+function youtubeArgs(url: string): string[] {
+    if (!new URL(url).hostname.endsWith('youtube.com')) {
+        return []
+    }
+    const args = ['--extractor-args', 'youtube:player_client=tv,ios,android,web_safari']
+    return env.CLIP_PROXY_URL ? [...args, '--proxy', env.CLIP_PROXY_URL] : args
+}
+
 // Returns null when the clip is too long or too big to take. yt-dlp rejects a
 // long clip from metadata before fetching a byte when the site reports a
 // duration, but Instagram often doesn't (`<=?` lets those through) — so the
@@ -134,10 +147,7 @@ export async function downloadClip(url: string, dir: string, maxSeconds: number)
         `duration<=?${maxSeconds} & !is_live`,
         '--max-filesize',
         MAX_CLIP_SIZE,
-        // YouTube answers the browser client from datacenter IPs with a bot
-        // check; the app clients are challenged less often. Ignored elsewhere.
-        '--extractor-args',
-        'youtube:player_client=tv,ios,android,web_safari',
+        ...youtubeArgs(url),
         '--print',
         'after_move:filepath',
         '-o',
