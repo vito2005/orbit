@@ -87,15 +87,19 @@ async function run(cmd: string[], timeoutMs = 120_000): Promise<string> {
     return stdout
 }
 
+// A three-minute 720p reel is ~25 MB; anything past this is not a reel.
+const MAX_CLIP_SIZE = '100M'
+
 export interface DownloadedClip {
     path: string
     durationSeconds: number
 }
 
-// Returns null when the clip is longer than maxSeconds. yt-dlp rejects that
-// from metadata before fetching a byte when the site reports a duration, but
-// Instagram often doesn't (`<=?` lets those through), so the file itself is
-// measured afterwards and that number is the one the limit trusts.
+// Returns null when the clip is too long or too big to take. yt-dlp rejects a
+// long clip from metadata before fetching a byte when the site reports a
+// duration, but Instagram often doesn't (`<=?` lets those through) — so the
+// file size is capped too, which stops an hour-long video mid-download, and
+// the finished file is measured, because that is the duration the limit trusts.
 export async function downloadClip(url: string, dir: string, maxSeconds: number): Promise<DownloadedClip | null> {
     const ytDlp = await ensureYtDlp()
     const args = [
@@ -107,7 +111,9 @@ export async function downloadClip(url: string, dir: string, maxSeconds: number)
         '--merge-output-format',
         'mp4',
         '--match-filter',
-        `duration<=?${maxSeconds}`,
+        `duration<=?${maxSeconds} & !is_live`,
+        '--max-filesize',
+        MAX_CLIP_SIZE,
         '--print',
         'after_move:filepath',
         '-o',
