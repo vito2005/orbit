@@ -75,6 +75,28 @@ function ensureYtDlp(): Promise<string> {
     return ytDlpReady
 }
 
+const UPDATE_EVERY_MS = 24 * 60 * 60 * 1000
+
+// Updates the installed binary in place. A no-op until the first clip has
+// installed it — the install itself always fetches the latest release.
+export async function updateYtDlp(): Promise<void> {
+    if (!(await Bun.file(ytDlpPath).exists())) {
+        return
+    }
+    try {
+        const output = await run([ytDlpPath, '-U'])
+        log.info(`yt-dlp update: ${output.trim().split('\n').at(-1)}`)
+    } catch (err) {
+        log.error('yt-dlp update failed', err)
+    }
+}
+
+// Sites break yt-dlp between our deploys; a daily update keeps the binary at
+// most a day behind without waiting for a user's clip to fail first.
+export function scheduleYtDlpUpdates(): void {
+    setInterval(() => void updateYtDlp(), UPDATE_EVERY_MS)
+}
+
 async function run(cmd: string[], timeoutMs = 120_000): Promise<string> {
     const proc = Bun.spawn(cmd, { stdout: 'pipe', stderr: 'pipe', timeout: timeoutMs })
     const [stdout, stderr, code] = await Promise.all([

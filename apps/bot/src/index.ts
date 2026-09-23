@@ -2,6 +2,7 @@ import { env } from '@orbit/shared'
 import { Elysia } from 'elysia'
 
 import { createBot } from './bot.ts'
+import { scheduleYtDlpUpdates } from './clip.ts'
 import { log } from './log.ts'
 
 async function main() {
@@ -22,6 +23,8 @@ async function main() {
         .listen(env.BOT_PORT)
 
     log.info(`HTTP server listening on :${env.BOT_PORT}`)
+
+    scheduleYtDlpUpdates()
 
     await bot.launch()
     log.info('Telegram bot launched (long polling)')
