@@ -90,6 +90,13 @@ async function run(cmd: string[], timeoutMs = 120_000): Promise<string> {
 // A three-minute 720p reel is ~25 MB; anything past this is not a reel.
 const MAX_CLIP_SIZE = '100M'
 
+// Private accounts, deleted posts, age or region gates — and, from a datacenter
+// IP, sites asking to log in. Retrying later won't help the user with any of
+// these, so they get their own reply.
+const UNAVAILABLE = /empty media response|login required|not available|unavailable|private|sign in/i
+
+export class ClipUnavailableError extends Error {}
+
 export interface DownloadedClip {
     path: string
     durationSeconds: number
@@ -128,7 +135,12 @@ export async function downloadClip(url: string, dir: string, maxSeconds: number)
         // yt-dlp already handles, so update once before giving up.
         log.info(`yt-dlp failed, updating and retrying: ${(err as Error).message}`)
         await run([ytDlp, '-U'])
-        output = await run([ytDlp, ...args])
+        try {
+            output = await run([ytDlp, ...args])
+        } catch (retryErr) {
+            const message = (retryErr as Error).message
+            throw UNAVAILABLE.test(message) ? new ClipUnavailableError(message) : retryErr
+        }
     }
     const path = output.trim()
     if (!path) {

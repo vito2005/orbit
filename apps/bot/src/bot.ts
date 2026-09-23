@@ -11,7 +11,7 @@ import {
 import { type Context, Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 
-import { parseClipRequest } from './clip.ts'
+import { ClipUnavailableError, parseClipRequest } from './clip.ts'
 import { formatSaved, formatTranslation, loginButton } from './format.ts'
 import { log } from './log.ts'
 import { CLIP_DAILY_COUNT, CLIP_DAILY_SECONDS, processClip, processText, processVoice } from './process.ts'
@@ -51,7 +51,10 @@ const RETRY_HINT: Record<string, string> = {
     voice: '⚠️ Не смог обработать голосовое. Оно осталось в чате — пришли ещё раз.',
     audio: '⚠️ Не смог обработать аудио. Оно осталось в чате — пришли ещё раз.',
     text: '⚠️ Не смог обработать сообщение. Пришли ещё раз.',
-    clip: '⚠️ Не смог перевести ролик — может, он закрытый или инста его не отдала. Попробуй ещё раз чуть позже.',
+    clip: '⚠️ Не смог перевести ролик. Попробуй ещё раз чуть позже.',
+    'clip-unavailable':
+        '⚠️ Не удалось скачать видео — похоже, аккаунт закрытый или у ролика ограничения (возраст, регион). ' +
+        'Проверь, открывается ли он без входа в аккаунт: если нет, я его не достану.',
     dashboard: '⚠️ Не смог собрать ссылку на журнал. Попробуй ещё раз.',
 }
 
@@ -253,7 +256,7 @@ export function createBot(): Telegraf<BotContext> {
                 await ctx.reply(text, { parse_mode: 'Markdown', ...(isLast ? markup : {}) })
             }
         } catch (err) {
-            await reportFailure(bot, ctx, 'clip', err)
+            await reportFailure(bot, ctx, err instanceof ClipUnavailableError ? 'clip-unavailable' : 'clip', err)
         }
     }
 
