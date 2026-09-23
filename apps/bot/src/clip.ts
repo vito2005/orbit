@@ -134,6 +134,10 @@ export async function downloadClip(url: string, dir: string, maxSeconds: number)
         `duration<=?${maxSeconds} & !is_live`,
         '--max-filesize',
         MAX_CLIP_SIZE,
+        // YouTube answers the browser client from datacenter IPs with a bot
+        // check; the app clients are challenged less often. Ignored elsewhere.
+        '--extractor-args',
+        'youtube:player_client=tv,ios,android,web_safari',
         '--print',
         'after_move:filepath',
         '-o',
