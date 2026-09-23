@@ -234,6 +234,10 @@ export function createBot(): Telegraf<BotContext> {
                 )
                 return
             }
+            if (outcome.kind === 'nothing-to-translate') {
+                await ctx.reply('В видео нет ни речи, ни текста — переводить нечего.')
+                return
+            }
             if (outcome.kind === 'not-english') {
                 await ctx.reply('Видео не на английском — разбора не будет. Перевожу только с английского.')
                 return

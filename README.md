@@ -117,7 +117,8 @@ with Whisper, reads burned-in subtitles off frames sampled once a second, and
 asks `gpt-5.4-mini` for an English transcript, a Russian translation and notes
 on slang and jokes. The result goes to `public.translations` (the dashboard's
 "Переводы" page), not to entries; the video is deleted right after. A link with
-any other text is saved as a normal idea. Non-English clips are skipped.
+any other text is saved as a normal idea. Works for any kind of clip — stand-up,
+interviews, songs, lessons. Non-English clips and clips with no words are skipped.
 
 Each user gets 5 clips and 10 minutes per rolling 24 hours — roughly 3 cents
 per 2-minute clip.

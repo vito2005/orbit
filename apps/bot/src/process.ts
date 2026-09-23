@@ -106,6 +106,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 export type ClipOutcome =
     | { kind: 'saved'; translation: Translation }
     | { kind: 'not-english' }
+    | { kind: 'nothing-to-translate' }
     | { kind: 'count-limit' }
     | { kind: 'too-long'; remainingSeconds: number }
 
@@ -138,12 +139,12 @@ export async function processClip(args: {
         log.info(`Clip ${clip.durationSeconds}s: transcript ${transcript.length} chars, ${frames.length} frame grids`)
 
         const result = await translateClip(transcript, frames)
-        if (!result) {
-            return { kind: 'not-english' }
+        if (result.status !== 'translated') {
+            return { kind: result.status }
         }
 
         const saved = await insertTranslation(supabase, {
-            ...result,
+            ...result.translation,
             user_id: args.userId,
             telegram_message_id: String(args.telegramMessageId),
             source_url: args.url,

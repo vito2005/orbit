@@ -279,30 +279,30 @@ function normalizeAnalysis(input: unknown, transcript: string, categories: strin
     }
 }
 
-const CLIP_SYSTEM_PROMPT = `You translate short English videos (Instagram reels, mostly stand-up and interviews) for a Russian speaker with intermediate English.
+const CLIP_SYSTEM_PROMPT = `You translate short English videos (Instagram reels, YouTube Shorts) for a Russian speaker with intermediate English. Anything goes: stand-up, interviews, podcasts, songs, vlogs, lessons, news.
 
 You get two sources for the same clip:
-1. An automatic speech transcript. It mishears names, slang and overlapping voices.
-2. Images, each a grid of frames sampled once per second — read left to right, top to bottom, in order. Frames are cropped to the band where burned-in subtitles usually sit. Many clips have no subtitles; then the frames are just picture.
+1. An automatic speech transcript. It mishears names, slang, lyrics and overlapping voices. On silence or instrumental music it invents filler ("Thank you for watching.", "you") — ignore that.
+2. Images, each a grid of frames sampled once per second — read left to right, top to bottom, in order. Frames are cropped to the band where burned-in subtitles and captions usually sit. A caption stays on screen for several frames: it is one line, write it once. Many clips have none; then the frames are just picture.
 
 Return STRICT JSON:
 
 {
-  "english": boolean,      // false if the speech is not English, or the subtitles are not English
+  "content": "english" | "other_language" | "nothing",
   "title": string,         // Russian, <= 80 chars, what the clip is about
   "summary": string,       // Russian, 1-2 sentences
-  "transcript": string,    // the most accurate English text of what is said
+  "transcript": string,    // the most accurate English text of what is said, sung or captioned
   "translation": string,   // Russian translation
   "notes": [{ "phrase": string, "explanation": string }]
 }
 
-When "english" is false, return empty strings and an empty notes array.
+content: "english" when there are English words to translate — speech, singing, or on-screen captions. "other_language" when the speech or captions are in another language, Russian included. "nothing" when there are no words at all — just music, ambient sound or picture. For anything but "english", return empty strings and an empty notes array.
 
-transcript: where subtitles exist they are the authority for wording, names and slang; the audio transcript fills whatever the subtitles miss. Keep the words exactly as spoken — never fix broken grammar or an accent, it is often the joke. One sentence per row. When several people talk, start each speaker's turn with "— " and never put a question and its answer on the same row.
+transcript: where subtitles exist they are the authority for wording, names and slang; the audio transcript fills whatever the subtitles miss. Keep the words exactly as spoken — never fix broken grammar or an accent, it is often the joke. One sentence or sung line per row. When several people talk, start each speaker's turn with "— " and never put a question and its answer on the same row.
 
-translation: natural spoken Russian that keeps the joke working — the rhythm of the setup and the punchline, the swearing and the tone. Not word for word. If someone speaks broken English on purpose, make their Russian broken in the same way. Same rows as the transcript, with the same "— " marks.
+translation: natural spoken Russian that keeps the tone — the swearing, the warmth, the rhythm of a setup and its punchline. Not word for word. If someone speaks broken English on purpose, make their Russian broken in the same way. For songs, translate the meaning line by line; do not try to rhyme. Same rows as the transcript, with the same "— " marks.
 
-notes: slang, idioms, wordplay, cultural and pop-culture references, and why a joke lands when that is not obvious from the translation. "phrase" is the original English, "explanation" is short Russian. Only what a Russian speaker would actually miss — none is fine, never more than 8.
+notes: what a Russian speaker would actually miss — slang, idioms, wordplay, cultural and pop-culture references, professional terms, a metaphor in a lyric, why a joke lands when the translation can't carry it. "phrase" is the original English, "explanation" is short Russian. None is fine, never more than 8.
 
 Return JSON only. No prose, no markdown fences.`
 
@@ -311,8 +311,13 @@ Return JSON only. No prose, no markdown fences.`
 // and about a fifth of the price. gpt-5.4-nano muddled names and softened jokes.
 const CLIP_MODEL = 'gpt-5.4-mini'
 
+export type ClipTranslationResult =
+    | { status: 'translated'; translation: ClipTranslation }
+    | { status: 'not-english' }
+    | { status: 'nothing-to-translate' }
+
 // frames: JPEG grids of subtitle-band crops, in playback order.
-export async function translateClip(transcript: string, frames: Uint8Array[]): Promise<ClipTranslation | null> {
+export async function translateClip(transcript: string, frames: Uint8Array[]): Promise<ClipTranslationResult> {
     const result = await chatCompletion(
         {
             model: CLIP_MODEL,
@@ -334,13 +339,16 @@ export async function translateClip(transcript: string, frames: Uint8Array[]): P
     return normalizeClipTranslation(parsed, transcript)
 }
 
-function normalizeClipTranslation(input: unknown, transcript: string): ClipTranslation | null {
+function normalizeClipTranslation(input: unknown, transcript: string): ClipTranslationResult {
     const obj = (input ?? {}) as Record<string, unknown>
     const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
 
+    if (obj.content === 'other_language') {
+        return { status: 'not-english' }
+    }
     const translation = text(obj.translation)
-    if (obj.english === false || translation.length === 0) {
-        return null
+    if (obj.content === 'nothing' || translation.length === 0) {
+        return { status: 'nothing-to-translate' }
     }
 
     const notes = Array.isArray(obj.notes)
@@ -352,10 +360,13 @@ function normalizeClipTranslation(input: unknown, transcript: string): ClipTrans
         : []
 
     return {
-        title: text(obj.title).slice(0, 120) || translation.split('\n')[0].slice(0, 80),
-        summary: text(obj.summary),
-        transcript: text(obj.transcript) || transcript,
-        translation,
-        notes,
+        status: 'translated',
+        translation: {
+            title: text(obj.title).slice(0, 120) || translation.split('\n')[0].slice(0, 80),
+            summary: text(obj.summary),
+            transcript: text(obj.transcript) || transcript,
+            translation,
+            notes,
+        },
     }
 }
