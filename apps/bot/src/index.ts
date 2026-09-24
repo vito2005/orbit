@@ -1,6 +1,7 @@
 import { env } from '@orbit/shared'
 import { Elysia } from 'elysia'
 
+import { COMMANDS, PROFILE_DESCRIPTION, PROFILE_SHORT_DESCRIPTION } from './about.ts'
 import { createBot } from './bot.ts'
 import { scheduleYtDlpUpdates } from './clip.ts'
 import { log } from './log.ts'
@@ -11,11 +12,13 @@ async function main() {
     // Drop any pending updates from a previous run so we don't replay old voices.
     await bot.telegram.deleteWebhook({ drop_pending_updates: true }).catch(() => {})
 
-    // Registers the commands in Telegram's own menu, so they are discoverable
-    // instead of something the user has to remember.
+    // The command menu and the profile texts are set from about.ts on every
+    // start, so what Telegram shows can't drift from what the bot does.
+    await bot.telegram.setMyCommands(COMMANDS).catch((err) => log.error('setMyCommands failed', err))
+    await bot.telegram.setMyDescription(PROFILE_DESCRIPTION).catch((err) => log.error('setMyDescription failed', err))
     await bot.telegram
-        .setMyCommands([{ command: 'dashboard', description: 'Открыть журнал' }])
-        .catch((err) => log.error('setMyCommands failed', err))
+        .setMyShortDescription(PROFILE_SHORT_DESCRIPTION)
+        .catch((err) => log.error('setMyShortDescription failed', err))
 
     const app = new Elysia()
         .get('/', () => ({ ok: true, name: 'orbit-bot' }))

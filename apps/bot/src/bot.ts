@@ -11,6 +11,7 @@ import {
 import { type Context, Telegraf } from 'telegraf'
 import { message } from 'telegraf/filters'
 
+import { HELP, HELP_ACTION, helpButton, LINKED, START_HINT, WELCOME } from './about.ts'
 import { ClipBlockedError, ClipUnavailableError, parseClipRequest } from './clip.ts'
 import { formatSaved, formatTranslation, loginButton } from './format.ts'
 import { log } from './log.ts'
@@ -19,17 +20,6 @@ import { CLIP_LIMITS, OPERATOR_CLIP_LIMITS, processClip, processText, processVoi
 interface BotContext extends Context {
     state: { userId?: string; justCreated?: boolean }
 }
-
-// Said once, right after the account appears — the person has not asked for a
-// tour, so it stays to what they need next: send something, and how to get back in.
-const WELCOME = [
-    '👋 Аккаунт создан — можно диктовать.',
-    '',
-    'Присылай голосовое или текст — расшифрую, разберу и сохраню.',
-    '',
-    '/dashboard — открыть журнал, вход прямо здесь.',
-    'В профиле можно привязать почту и заходить ещё и по ней.',
-].join('\n')
 
 // Telegram hands over files up to 20 MB — roughly three hours of speech. That
 // bills three times over: Whisper by the second, the transcript by the token,
@@ -122,7 +112,7 @@ export function createBot(): Telegraf<BotContext> {
         ctx.state.userId = await createUserForTelegram(supabase, telegramId, ctx.from?.username)
         ctx.state.justCreated = true
         log.info(`New account from telegram ${telegramId}`)
-        await ctx.reply(WELCOME)
+        await ctx.reply(WELCOME, helpButton)
         return next()
     })
 
@@ -163,7 +153,7 @@ export function createBot(): Telegraf<BotContext> {
             // A brand-new account has just been shown WELCOME by the middleware,
             // which already says all of this — no need to say it twice.
             if (!ctx.state.justCreated) {
-                await ctx.reply('Присылай голос или текст — сохраню в твой журнал.')
+                await ctx.reply(START_HINT, helpButton)
             }
             return
         }
@@ -173,10 +163,19 @@ export function createBot(): Telegraf<BotContext> {
             return
         }
         await linkTelegramUser(supabase, userId, ctx.from.id)
-        await ctx.reply('✅ Аккаунт привязан. Присылай голос или текст — я сохраню в твой журнал.')
+        await ctx.reply(LINKED, helpButton)
     })
 
     bot.command('dashboard', (ctx) => sendLoginLink(ctx))
+
+    bot.command('help', (ctx) => ctx.reply(HELP))
+
+    bot.action(HELP_ACTION, async (ctx) => {
+        await ctx.reply(HELP)
+        // A tap older than Telegram's answer window (say, across a restart)
+        // can't be acknowledged; the help has already gone out regardless.
+        await ctx.answerCbQuery().catch((err) => log.error('help button ack failed', err))
+    })
 
     bot.on(message('voice'), async (ctx) => {
         try {
