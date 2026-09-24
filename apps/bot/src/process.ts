@@ -97,10 +97,16 @@ export async function processText(args: { userId: string; text: string; telegram
     return saved
 }
 
+export interface ClipLimits {
+    count: number
+    seconds: number
+}
+
 // Each clip bills Whisper by the minute and a vision model by the frame —
-// about three cents for two minutes. The caps keep a runaway day at ~15 cents.
-export const CLIP_DAILY_COUNT = 5
-export const CLIP_DAILY_SECONDS = 600
+// about three cents for two minutes. The caps keep a runaway day at ~15 cents,
+// ~30 for the operator, who uses it most.
+export const CLIP_LIMITS: ClipLimits = { count: 5, seconds: 600 }
+export const OPERATOR_CLIP_LIMITS: ClipLimits = { count: 10, seconds: 1200 }
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export type ClipOutcome =
@@ -114,14 +120,15 @@ export async function processClip(args: {
     userId: string
     url: string
     telegramMessageId: number
+    limits: ClipLimits
 }): Promise<ClipOutcome> {
     const supabase = getServiceClient()
 
     const usage = await translationUsageSince(supabase, args.userId, new Date(Date.now() - DAY_MS))
-    if (usage.count >= CLIP_DAILY_COUNT) {
+    if (usage.count >= args.limits.count) {
         return { kind: 'count-limit' }
     }
-    const remainingSeconds = CLIP_DAILY_SECONDS - usage.seconds
+    const remainingSeconds = args.limits.seconds - usage.seconds
     if (remainingSeconds <= 0) {
         return { kind: 'too-long', remainingSeconds: 0 }
     }

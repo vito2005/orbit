@@ -14,7 +14,7 @@ import { message } from 'telegraf/filters'
 import { ClipBlockedError, ClipUnavailableError, parseClipRequest } from './clip.ts'
 import { formatSaved, formatTranslation, loginButton } from './format.ts'
 import { log } from './log.ts'
-import { CLIP_DAILY_COUNT, CLIP_DAILY_SECONDS, processClip, processText, processVoice } from './process.ts'
+import { CLIP_LIMITS, OPERATOR_CLIP_LIMITS, processClip, processText, processVoice } from './process.ts'
 
 interface BotContext extends Context {
     state: { userId?: string; justCreated?: boolean }
@@ -235,16 +235,15 @@ export function createBot(): Telegraf<BotContext> {
         try {
             await ctx.reply('🎬 Скачиваю и перевожу — обычно до минуты.')
             await ctx.sendChatAction('typing')
-            const outcome = await processClip({ userId: ctx.state.userId!, url, telegramMessageId: messageId })
+            const limits = String(ctx.from?.id) === env.TELEGRAM_ADMIN_CHAT_ID ? OPERATOR_CLIP_LIMITS : CLIP_LIMITS
+            const outcome = await processClip({ userId: ctx.state.userId!, url, telegramMessageId: messageId, limits })
             if (outcome.kind === 'count-limit') {
-                await ctx.reply(`⚠️ Уже ${CLIP_DAILY_COUNT} роликов за сутки — это лимит. Пришли этот позже.`)
+                await ctx.reply(`⚠️ Уже ${limits.count} роликов за сутки — это лимит. Пришли этот позже.`)
                 return
             }
             if (outcome.kind === 'too-long') {
                 const left = Math.floor(outcome.remainingSeconds / 60)
-                await ctx.reply(
-                    `⚠️ Ролик не влезает в лимит: на сутки осталось ${left} мин из ${CLIP_DAILY_SECONDS / 60}.`,
-                )
+                await ctx.reply(`⚠️ Ролик не влезает в лимит: на сутки осталось ${left} мин из ${limits.seconds / 60}.`)
                 return
             }
             if (outcome.kind === 'nothing-to-translate') {
