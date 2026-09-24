@@ -236,9 +236,8 @@ imported once in `+layout.svelte`.
   `calloutError`, …). Reuse those instead of re-typing the full string or
   reintroducing a semantic CSS class. One-off layout stays inline.
 - **What stays in CSS (not utilities):** base element styling for
-  `input` / `select` / `textarea` / `a` (`@layer base`), and AI-generated
-  markdown (`.strategy-prose`) whose elements are injected via `{@html}` and
-  can't carry classes. Keep these minimal — everything else is utilities.
+  `input` / `select` / `textarea` / `a` (`@layer base`). Keep it minimal —
+  everything else is utilities.
 
 ## Elysia (bot HTTP)
 
