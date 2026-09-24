@@ -48,6 +48,10 @@ export const COMMANDS = [
     { command: 'dashboard', description: 'Открыть журнал' },
 ]
 
+// Set for the operator's chat only; everyone else sees COMMANDS. Hiding it is
+// not the guard — the /stats handler checks the sender itself.
+export const OPERATOR_COMMANDS = [...COMMANDS, { command: 'stats', description: 'Статистика проекта' }]
+
 export const HELP_ACTION = 'help'
 
 // A newcomer won't think to open the command menu; one tap under the greeting.

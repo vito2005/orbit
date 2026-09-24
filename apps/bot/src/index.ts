@@ -1,7 +1,7 @@
 import { env } from '@orbit/shared'
 import { Elysia } from 'elysia'
 
-import { COMMANDS, PROFILE_DESCRIPTION, PROFILE_SHORT_DESCRIPTION } from './about.ts'
+import { COMMANDS, OPERATOR_COMMANDS, PROFILE_DESCRIPTION, PROFILE_SHORT_DESCRIPTION } from './about.ts'
 import { createBot } from './bot.ts'
 import { scheduleYtDlpUpdates } from './clip.ts'
 import { log } from './log.ts'
@@ -15,6 +15,11 @@ async function main() {
     // The command menu and the profile texts are set from about.ts on every
     // start, so what Telegram shows can't drift from what the bot does.
     await bot.telegram.setMyCommands(COMMANDS).catch((err) => log.error('setMyCommands failed', err))
+    if (env.TELEGRAM_ADMIN_CHAT_ID) {
+        await bot.telegram
+            .setMyCommands(OPERATOR_COMMANDS, { scope: { type: 'chat', chat_id: Number(env.TELEGRAM_ADMIN_CHAT_ID) } })
+            .catch((err) => log.error('operator setMyCommands failed', err))
+    }
     await bot.telegram.setMyDescription(PROFILE_DESCRIPTION).catch((err) => log.error('setMyDescription failed', err))
     await bot.telegram
         .setMyShortDescription(PROFILE_SHORT_DESCRIPTION)

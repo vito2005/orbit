@@ -16,6 +16,7 @@ import { ClipBlockedError, ClipUnavailableError, parseClipRequest } from './clip
 import { formatSaved, formatTranslation, loginButton } from './format.ts'
 import { log } from './log.ts'
 import { CLIP_LIMITS, OPERATOR_CLIP_LIMITS, processClip, processText, processVoice } from './process.ts'
+import { buildStats } from './stats.ts'
 
 interface BotContext extends Context {
     state: { userId?: string; justCreated?: boolean }
@@ -170,6 +171,20 @@ export function createBot(): Telegraf<BotContext> {
 
     bot.command('help', (ctx) => ctx.reply(HELP))
 
+    // Anyone else gets silence, not "not allowed" — the command isn't theirs to
+    // know about.
+    bot.command('stats', async (ctx) => {
+        if (!isOperator(ctx)) {
+            return
+        }
+        try {
+            await ctx.reply(await buildStats())
+        } catch (err) {
+            log.error('stats failed', err)
+            await ctx.reply('⚠️ Не смог собрать статистику, подробности в логах.')
+        }
+    })
+
     bot.action(HELP_ACTION, async (ctx) => {
         await ctx.reply(HELP)
         // A tap older than Telegram's answer window (say, across a restart)
@@ -234,7 +249,7 @@ export function createBot(): Telegraf<BotContext> {
         try {
             await ctx.reply('🎬 Скачиваю и перевожу — обычно до минуты.')
             await ctx.sendChatAction('typing')
-            const limits = String(ctx.from?.id) === env.TELEGRAM_ADMIN_CHAT_ID ? OPERATOR_CLIP_LIMITS : CLIP_LIMITS
+            const limits = isOperator(ctx) ? OPERATOR_CLIP_LIMITS : CLIP_LIMITS
             const outcome = await processClip({ userId: ctx.state.userId!, url, telegramMessageId: messageId, limits })
             if (outcome.kind === 'count-limit') {
                 await ctx.reply(`⚠️ Уже ${limits.count} роликов за сутки — это лимит. Пришли этот позже.`)
@@ -296,6 +311,10 @@ export function createBot(): Telegraf<BotContext> {
     })
 
     return bot
+}
+
+function isOperator(ctx: BotContext): boolean {
+    return Boolean(env.TELEGRAM_ADMIN_CHAT_ID) && String(ctx.from?.id) === env.TELEGRAM_ADMIN_CHAT_ID
 }
 
 // YouTube links already unfurl into a preview in Telegram; Instagram's don't.
