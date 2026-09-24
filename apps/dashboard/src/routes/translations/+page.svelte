@@ -10,7 +10,7 @@
 {#if data.translations.length === 0}
     <div class={emptyBox}>
         <p class="m-0 max-w-[44ch]">
-            Переводов пока нет. Пришли боту ссылку на рилз или YouTube Shorts — переведу с английского и объясню шутки.
+            Переводов пока нет. Пришли боту ссылку на Reels или YouTube Shorts — переведу с английского и объясню шутки.
         </p>
     </div>
 {:else}
